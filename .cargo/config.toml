@@ -1,0 +1,15 @@
+[build]
+rustflags = ["-C", "target-cpu=native"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+
+[registries.crates-io]
+protocol = "sparse"
+
+[env]
+RUST_LOG = "info"
+RUST_BACKTRACE = "1"

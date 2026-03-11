@@ -1,0 +1,14 @@
+[package]
+name = "job-application"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+job-domain = { path = "../job-domain" }
+job-store-pg = { path = "../job-store-pg" }
+serde_json.workspace = true
+tracing.workspace = true

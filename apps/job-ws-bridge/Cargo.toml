@@ -1,0 +1,16 @@
+[package]
+name = "job-ws-bridge"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+axum.workspace = true
+dotenvy.workspace = true
+job-events = { path = "../../crates/job-events" }
+job-observability = { path = "../../crates/job-observability" }
+tokio.workspace = true
+tracing.workspace = true
