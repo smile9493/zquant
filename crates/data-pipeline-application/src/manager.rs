@@ -45,6 +45,7 @@ impl DataPipelineManager {
             capability: req.capability,
             market: req.market,
             dataset_id: None,
+            symbol_scope: Vec::new(),
             time_range: None,
             forced_provider: None,
         }, candidates).await

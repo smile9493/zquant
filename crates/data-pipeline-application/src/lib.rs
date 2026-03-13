@@ -15,5 +15,8 @@ pub use normalizer::BasicNormalizer;
 pub use persist::InMemoryPersistWriter;
 pub use provider_registry::ProviderRegistry;
 pub use providers::MockProvider;
+pub use providers::AkshareProvider;
+pub use python_runner::PythonRunner;
 pub use quality_gate::BasicQualityGate;
 pub use route_resolver::PriorityRouteResolver;
+pub mod python_runner;

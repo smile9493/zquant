@@ -39,6 +39,7 @@ async fn main() -> anyhow::Result<()> {
             capability: Capability::Ohlcv,
             market: Market::UsEquity,
             dataset_id: None,
+            symbol_scope: vec!["DEMO".to_string()],
             time_range: None,
             forced_provider: None,
         },

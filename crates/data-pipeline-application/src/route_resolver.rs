@@ -34,16 +34,42 @@ impl RouteResolver for PriorityRouteResolver {
         mut candidates: Vec<Arc<dyn DataProvider>>,
     ) -> anyhow::Result<Arc<dyn DataProvider>> {
         if let Some(forced) = &req.forced_provider {
-            return candidates
+            tracing::debug!("Forced provider constraint: {}", forced);
+
+            let provider = candidates
                 .into_iter()
                 .find(|p| p.provider_name() == forced)
-                .ok_or_else(|| anyhow::anyhow!("Forced provider '{}' not available", forced));
+                .ok_or_else(|| {
+                    tracing::warn!("Forced provider '{}' not available", forced);
+                    anyhow::anyhow!("Provider '{}' not available", forced)
+                })?;
+
+            if !provider.capabilities().contains(&req.capability) || !provider.markets().contains(&req.market) {
+                tracing::warn!(
+                    "Forced provider '{}' does not support capability={:?}/market={:?}",
+                    forced, req.capability, req.market
+                );
+                anyhow::bail!(
+                    "Provider '{}' does not support this capability/market",
+                    forced
+                );
+            }
+
+            tracing::info!("Selected provider: {}", provider.provider_name());
+            return Ok(provider);
+        }
+
+        if candidates.is_empty() {
+            tracing::warn!(
+                "No provider found for capability={:?}/market={:?}",
+                req.capability, req.market
+            );
+            anyhow::bail!("No provider available");
         }
 
         candidates.sort_by_key(|p| std::cmp::Reverse(p.priority()));
-        candidates
-            .into_iter()
-            .next()
-            .ok_or_else(|| anyhow::anyhow!("No provider available"))
+        let provider = candidates.into_iter().next().unwrap();
+        tracing::info!("Selected provider: {}", provider.provider_name());
+        Ok(provider)
     }
 }
