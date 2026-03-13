@@ -1,0 +1,3 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/backend/akshare-dataset-contracts.md", "reason": "Frozen contract for field mapping"}
