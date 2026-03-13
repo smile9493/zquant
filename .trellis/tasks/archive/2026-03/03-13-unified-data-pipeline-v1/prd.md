@@ -160,3 +160,24 @@ This work is intended to integrate with the existing Phase 1 EDA kernel (jobs/ag
 - [ ] Version all data pipeline event payloads.
 - [ ] Add targeted regression tests for the repaired contract edges.
 
+## Review Outcome (2026-03-13)
+
+REVIEW: PASS
+
+### What Changed
+
+- Quarantine persistence now stores a `QuarantineRecord` containing rejected data plus `reasons` and `dq_issues`.
+- `ingest_dataset()` preserves caller-provided `dataset_id` (generates one only if missing).
+- `fetch()` now uses `RouteResolver` to apply the same provider selection policy as `fetch_dataset()`.
+- All 5 data pipeline bus event payloads include `schema_v = "1.0"`.
+
+### Verified
+
+- `cargo check -p data-pipeline-application`
+- `cargo test -p data-pipeline-application` (8 tests)
+- `cargo clippy -p data-pipeline-application -- -D warnings`
+
+### Reference
+
+- Fix commit: `8cfc5c1` (fix(data-pipeline): fix 4 review findings (P1+P2))
+
