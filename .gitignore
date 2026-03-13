@@ -1,0 +1,27 @@
+# Rust
+/target/
+**/*.rs.bk
+
+# Local env / secrets
+/.env
+/.env.*
+!/.env.example
+
+# AI tooling / local state
+/.agents/
+/.claude/
+/.cursor/
+.trellis/
+# Trellis local state (developer/workspace/tasks are machine-specific)
+
+# Editor/OS noise
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Generated artifacts sometimes created at repo root
+/docker-compose.yml
