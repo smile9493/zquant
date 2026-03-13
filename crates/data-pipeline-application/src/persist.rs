@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use data_pipeline_domain::{
-    Capability, Market, NormalizedData, PersistReceipt, QuarantineId, RawData,
+    Capability, Market, NormalizedData, PersistReceipt, QuarantineId, QuarantineRecord,
 };
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -23,11 +23,6 @@ pub struct CatalogEntry {
     pub metadata: DatasetMetadata,
 }
 
-#[derive(Debug)]
-pub struct QuarantineReason {
-    pub reasons: Vec<String>,
-}
-
 #[async_trait]
 pub trait PersistWriter: Send + Sync {
     async fn write_dataset(
@@ -40,15 +35,14 @@ pub trait PersistWriter: Send + Sync {
 
     async fn write_quarantine(
         &self,
-        data: &RawData,
-        reason: &QuarantineReason,
+        record: &QuarantineRecord,
     ) -> anyhow::Result<QuarantineId>;
 }
 
 pub struct InMemoryPersistWriter {
     datasets: Arc<Mutex<HashMap<String, NormalizedData>>>,
     catalogs: Arc<Mutex<HashMap<String, CatalogEntry>>>,
-    quarantines: Arc<Mutex<HashMap<String, RawData>>>,
+    quarantines: Arc<Mutex<HashMap<String, QuarantineRecord>>>,
 }
 
 impl Default for InMemoryPersistWriter {
@@ -113,11 +107,10 @@ impl PersistWriter for InMemoryPersistWriter {
         Ok(catalog_id)
     }
 
-    #[tracing::instrument(skip(self, data, _reason), fields(quarantine_id))]
+    #[tracing::instrument(skip(self, record), fields(quarantine_id))]
     async fn write_quarantine(
         &self,
-        data: &RawData,
-        _reason: &QuarantineReason,
+        record: &QuarantineRecord,
     ) -> anyhow::Result<QuarantineId> {
         let quarantine_id = format!("quarantine_{}", uuid::Uuid::new_v4());
         tracing::Span::current().record("quarantine_id", quarantine_id.as_str());
@@ -125,7 +118,7 @@ impl PersistWriter for InMemoryPersistWriter {
         self.quarantines
             .lock()
             .map_err(|e| anyhow::anyhow!("failed to acquire lock on quarantines: {}", e))?
-            .insert(quarantine_id.clone(), data.clone());
+            .insert(quarantine_id.clone(), record.clone());
         Ok(quarantine_id)
     }
 }

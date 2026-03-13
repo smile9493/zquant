@@ -88,6 +88,7 @@ impl EventEmitter for PipelineEventEmitter {
 
         if let Some(bus) = &self.bus {
             let bus_event = job_events::types::DatasetFetchedEvent {
+                schema_v: "1.0".to_string(),
                 dataset_id: event.dataset_id,
                 provider: event.provider,
                 capability: format!("{:?}", event.capability),
@@ -114,6 +115,7 @@ impl EventEmitter for PipelineEventEmitter {
 
         if let Some(bus) = &self.bus {
             let bus_event = job_events::types::DatasetGateCompletedEvent {
+                schema_v: "1.0".to_string(),
                 dataset_id: event.dataset_id,
                 decision: format!("{:?}", event.decision),
                 quality_score: event.quality_score,
@@ -136,6 +138,7 @@ impl EventEmitter for PipelineEventEmitter {
 
         if let Some(bus) = &self.bus {
             let bus_event = job_events::types::DatasetIngestedEvent {
+                schema_v: "1.0".to_string(),
                 dataset_id: event.dataset_id,
                 decision: format!("{:?}", event.decision),
                 storage_path: event.storage_path,
@@ -157,6 +160,7 @@ impl EventEmitter for PipelineEventEmitter {
 
         if let Some(bus) = &self.bus {
             let bus_event = job_events::types::DqRejectionEvent {
+                schema_v: "1.0".to_string(),
                 quarantine_id: event.quarantine_id,
                 dataset_id: event.dataset_id,
                 reasons: event.reasons,
@@ -177,6 +181,7 @@ impl EventEmitter for PipelineEventEmitter {
 
         if let Some(bus) = &self.bus {
             let bus_event = job_events::types::DqDegradedEvent {
+                schema_v: "1.0".to_string(),
                 dataset_id: event.dataset_id,
                 quality_score: event.quality_score,
                 issues: event.issues.iter().map(|i| job_events::types::DqIssue {

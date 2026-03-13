@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::quality::DqDecision;
+use crate::quality::{DqDecision, DqIssue};
+use crate::types::NormalizedData;
 
 pub type DatasetId = String;
 pub type QuarantineId = String;
@@ -18,4 +19,11 @@ pub struct IngestResult {
     pub decision: DqDecision,
     pub quarantine_id: Option<QuarantineId>,
     pub persist_receipt: Option<PersistReceipt>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuarantineRecord {
+    pub rejected_data: NormalizedData,
+    pub reasons: Vec<String>,
+    pub dq_issues: Vec<DqIssue>,
 }

@@ -79,6 +79,7 @@ pub struct AgentMessageProduced {
 // Note: These mirror data-pipeline-application event types for bus serialization
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatasetFetchedEvent {
+    pub schema_v: String,
     pub dataset_id: String,
     pub provider: String,
     pub capability: String,
@@ -89,6 +90,7 @@ pub struct DatasetFetchedEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatasetGateCompletedEvent {
+    pub schema_v: String,
     pub dataset_id: String,
     pub decision: String,
     pub quality_score: f64,
@@ -98,6 +100,7 @@ pub struct DatasetGateCompletedEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatasetIngestedEvent {
+    pub schema_v: String,
     pub dataset_id: String,
     pub decision: String,
     pub storage_path: String,
@@ -107,6 +110,7 @@ pub struct DatasetIngestedEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DqRejectionEvent {
+    pub schema_v: String,
     pub quarantine_id: String,
     pub dataset_id: String,
     pub reasons: Vec<String>,
@@ -115,6 +119,7 @@ pub struct DqRejectionEvent {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DqDegradedEvent {
+    pub schema_v: String,
     pub dataset_id: String,
     pub quality_score: f64,
     pub issues: Vec<DqIssue>,

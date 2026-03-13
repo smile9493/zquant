@@ -41,10 +41,14 @@ impl DataPipelineManager {
     #[tracing::instrument(skip(self), fields(capability = ?req.capability, market = ?req.market))]
     pub async fn fetch(&self, req: FetchRequest) -> anyhow::Result<RawData> {
         let candidates = self.registry.find_providers(req.capability, req.market);
-        if candidates.is_empty() {
-            anyhow::bail!("No provider found for {:?}/{:?}", req.capability, req.market);
-        }
-        let provider = candidates.into_iter().next().unwrap();
+        let provider = self.resolver.resolve(&DatasetRequest {
+            capability: req.capability,
+            market: req.market,
+            dataset_id: None,
+            time_range: None,
+            forced_provider: None,
+        }, candidates).await
+            .map_err(|e| anyhow::anyhow!("failed to resolve provider for {:?}/{:?}: {}", req.capability, req.market, e))?;
         provider.fetch(req).await
             .map_err(|e| anyhow::anyhow!("failed to fetch data from provider {}: {}", provider.provider_name(), e))
     }
@@ -65,7 +69,8 @@ impl DataPipelineManager {
         use chrono::Utc;
         use data_pipeline_domain::DqDecision;
 
-        let dataset_id = format!("ds_{}", uuid::Uuid::new_v4());
+        let dataset_id = req.dataset_request.dataset_id.clone()
+            .unwrap_or_else(|| format!("ds_{}", uuid::Uuid::new_v4()));
         let dr = &req.dataset_request;
 
         let normalized = self.fetch_dataset(dr.clone()).await
@@ -151,12 +156,14 @@ impl DataPipelineManager {
             }
             DqDecision::Reject => {
                 let reasons: Vec<String> = qr.issues.iter().map(|i| i.message.clone()).collect();
-                let raw = data_pipeline_domain::RawData {
-                    content: serde_json::json!({"rejected": true}),
+                let quarantine_record = data_pipeline_domain::QuarantineRecord {
+                    rejected_data: qr.cleaned_data.clone(),
+                    reasons: reasons.clone(),
+                    dq_issues: qr.issues.clone(),
                 };
                 let quarantine_id = self
                     .persist_writer
-                    .write_quarantine(&raw, &crate::persist::QuarantineReason { reasons: reasons.clone() })
+                    .write_quarantine(&quarantine_record)
                     .await?;
 
                 self.event_emitter
