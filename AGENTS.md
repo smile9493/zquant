@@ -1,18 +1,57 @@
-<!-- TRELLIS:START -->
-# Trellis Instructions
+# AI Agent Instructions
 
-These instructions are for AI assistants working in this project.
+This file contains mandatory rules for all AI assistants working in this project.
 
-Use the `/trellis:start` command when starting a new session to:
-- Initialize your developer identity
-- Understand current project context
-- Read relevant guidelines
+---
 
-Use `@/.trellis/` to learn:
-- Development workflow (`workflow.md`)
-- Project structure guidelines (`spec/`)
-- Developer workspace (`workspace/`)
+## Single Source of Truth: .trellis
 
-Keep this managed block so 'trellis update' can refresh the instructions.
+**Rule**: All task management, planning, and progress tracking MUST use the `.trellis/` system.
 
-<!-- TRELLIS:END -->
+**Forbidden**: Do NOT create or update these files in the repository root:
+- `task_plan.md`
+- `findings.md`
+- `progress.md`
+
+**Why**: These files are deprecated. The project now uses `.trellis/tasks/` as the single source of truth.
+
+**What to use instead**:
+- Task planning → `.trellis/tasks/{task-name}/prd.md`
+- Task tracking → `.trellis/tasks/{task-name}/task.json`
+- Session notes → `.trellis/workspace/{developer}/journal-N.md`
+
+---
+
+## Platform-Specific Commands
+
+**Windows Environment**: This project runs on Windows. Use the correct Python command:
+
+✅ **Correct**: `python ./.trellis/scripts/task.py list`
+❌ **Wrong**: `python3 ./.trellis/scripts/task.py list`
+
+**Rule**: Always use `python` (not `python3`) when calling Trellis scripts or any Python commands in this project.
+
+---
+
+## Trellis Workflow
+
+**Starting a session**:
+1. Use `/trellis:start` command to initialize
+2. Read `.trellis/workflow.md` for detailed workflow
+3. Read relevant guidelines in `.trellis/spec/` before coding
+
+**Key resources**:
+- Development workflow: `.trellis/workflow.md`
+- Backend guidelines: `.trellis/spec/backend/index.md`
+- Thinking guides: `.trellis/spec/guides/index.md`
+
+---
+
+## Enforcement
+
+These rules are mandatory for all AI agents. Violations will result in:
+- Incorrect task tracking
+- Command execution failures on Windows
+- Confusion between deprecated and current systems
+
+When in doubt, refer to `.trellis/README.md` and `.trellis/workflow.md`.

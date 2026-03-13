@@ -14,11 +14,15 @@
 !/.claude/agents/*.md
 /.cursor/
 
-# Trellis: keep local state ignored, but commit shared specs
+# Trellis: commit shared specs + tasks, ignore local workspace
 !.trellis/
 .trellis/*
+!.trellis/.gitignore
 !.trellis/spec/
 !.trellis/spec/**
+!.trellis/tasks/
+!.trellis/tasks/**
+.trellis/workspace/
 
 # Editor/OS noise
 .DS_Store
@@ -31,3 +35,8 @@ Desktop.ini
 
 # Generated artifacts sometimes created at repo root
 /docker-compose.yml
+
+# Deprecated planning files (now use .trellis/tasks/)
+/task_plan.md
+/findings.md
+/progress.md
