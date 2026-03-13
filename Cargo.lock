@@ -434,6 +434,7 @@ dependencies = [
  "job-events",
  "serde",
  "serde_json",
+ "tempfile",
  "tokio",
  "tracing",
  "tracing-subscriber",

@@ -12,7 +12,7 @@ pub use events::PipelineEventEmitter;
 pub use job_handler::DataPipelineJobHandler;
 pub use manager::DataPipelineManager;
 pub use normalizer::BasicNormalizer;
-pub use persist::InMemoryPersistWriter;
+pub use persist::{FilePersistWriter, InMemoryPersistWriter};
 pub use provider_registry::ProviderRegistry;
 pub use providers::MockProvider;
 pub use providers::AkshareProvider;

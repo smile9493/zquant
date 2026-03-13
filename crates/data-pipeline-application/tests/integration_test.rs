@@ -585,5 +585,242 @@ mod akshare_tests {
         let err_msg = result.unwrap_err().to_string();
         assert!(err_msg.contains("symbol not found"));
     }
+
+    #[tokio::test]
+    async fn test_akshare_file_persist_success() {
+        use data_pipeline_application::FilePersistWriter;
+        use tempfile::TempDir;
+
+        let fake_runner = Arc::new(FakePythonRunner {
+            response: serde_json::json!({
+                "status": "success",
+                "data": [
+                    {
+                        "date": "2024-01-01",
+                        "open": 10.5,
+                        "high": 11.0,
+                        "low": 10.2,
+                        "close": 10.8,
+                        "volume": 1000000
+                    }
+                ]
+            }),
+        });
+
+        let temp_dir = TempDir::new().unwrap();
+        let mut registry = ProviderRegistry::new();
+        registry.register(Arc::new(AkshareProvider::new(fake_runner)));
+
+        let manager = DataPipelineManager::new(
+            registry,
+            Box::new(PriorityRouteResolver::new()),
+            Box::new(BasicNormalizer::new()),
+            Box::new(BasicQualityGate::new()),
+            Box::new(FilePersistWriter::new(temp_dir.path())),
+            Box::new(PipelineEventEmitter::new_noop()),
+        );
+
+        let req = IngestRequest {
+            dataset_request: DatasetRequest {
+                capability: Capability::Ohlcv,
+                market: Market::CnEquity,
+                dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+                symbol_scope: vec!["000001".to_string()],
+                time_range: None,
+                forced_provider: Some("akshare".to_string()),
+            },
+        };
+
+        let result = manager.ingest_dataset(req).await.unwrap();
+
+        assert_eq!(result.decision, DqDecision::Accept);
+        assert!(result.persist_receipt.is_some());
+
+        let receipt = result.persist_receipt.unwrap();
+        assert!(std::path::Path::new(&receipt.storage_path).exists());
+
+        let catalog_path = temp_dir.path().join("catalogs").join("cn_equity.ohlcv.daily.json");
+        assert!(catalog_path.exists());
+    }
+
+    #[tokio::test]
+    async fn test_akshare_file_persist_reject() {
+        use data_pipeline_application::FilePersistWriter;
+        use data_pipeline_domain::{DataQualityResult, DqIssue, IssueSeverity, NormalizedData};
+        use tempfile::TempDir;
+
+        struct RejectQualityGate;
+
+        #[async_trait::async_trait]
+        impl data_pipeline_application::quality_gate::QualityGate for RejectQualityGate {
+            async fn check(&self, data: &NormalizedData) -> anyhow::Result<DataQualityResult> {
+                Ok(DataQualityResult {
+                    decision: DqDecision::Reject,
+                    quality_score: 0.0,
+                    issues: vec![DqIssue {
+                        severity: IssueSeverity::Error,
+                        field: Some("volume".to_string()),
+                        message: "Volume out of range".to_string(),
+                    }],
+                    cleaned_data: data.clone(),
+                })
+            }
+        }
+
+        let fake_runner = Arc::new(FakePythonRunner {
+            response: serde_json::json!({
+                "status": "success",
+                "data": [
+                    {
+                        "date": "2024-01-01",
+                        "open": 10.5,
+                        "high": 11.0,
+                        "low": 10.2,
+                        "close": 10.8,
+                        "volume": 1000000
+                    }
+                ]
+            }),
+        });
+
+        let temp_dir = TempDir::new().unwrap();
+        let mut registry = ProviderRegistry::new();
+        registry.register(Arc::new(AkshareProvider::new(fake_runner)));
+
+        let manager = DataPipelineManager::new(
+            registry,
+            Box::new(PriorityRouteResolver::new()),
+            Box::new(BasicNormalizer::new()),
+            Box::new(RejectQualityGate),
+            Box::new(FilePersistWriter::new(temp_dir.path())),
+            Box::new(PipelineEventEmitter::new_noop()),
+        );
+
+        let req = IngestRequest {
+            dataset_request: DatasetRequest {
+                capability: Capability::Ohlcv,
+                market: Market::CnEquity,
+                dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+                symbol_scope: vec!["000001".to_string()],
+                time_range: None,
+                forced_provider: Some("akshare".to_string()),
+            },
+        };
+
+        let result = manager.ingest_dataset(req).await.unwrap();
+
+        assert_eq!(result.decision, DqDecision::Reject);
+        assert!(result.quarantine_id.is_some());
+
+        let quarantine_files: Vec<_> = std::fs::read_dir(temp_dir.path().join("quarantine"))
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .collect();
+        assert_eq!(quarantine_files.len(), 1);
+    }
 }
 
+// ============================================================================
+// Phase C: Filesystem Persistence Tests
+// ============================================================================
+
+#[tokio::test]
+async fn test_file_persist_accept_scenario() {
+    use data_pipeline_application::FilePersistWriter;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(MockProvider::new()));
+
+    let manager = DataPipelineManager::new(
+        registry,
+        Box::new(PriorityRouteResolver::new()),
+        Box::new(BasicNormalizer::new()),
+        Box::new(BasicQualityGate::new()),
+        Box::new(FilePersistWriter::new(temp_dir.path())),
+        Box::new(PipelineEventEmitter::new_noop()),
+    );
+
+    let req = IngestRequest {
+        dataset_request: DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            dataset_id: Some("test_dataset".to_string()),
+            symbol_scope: vec!["TEST".to_string()],
+            time_range: None,
+            forced_provider: None,
+        },
+    };
+
+    let result = manager.ingest_dataset(req).await.unwrap();
+
+    assert_eq!(result.decision, DqDecision::Accept);
+    assert!(result.persist_receipt.is_some());
+
+    let receipt = result.persist_receipt.unwrap();
+    assert!(std::path::Path::new(&receipt.storage_path).exists());
+
+    let catalog_path = temp_dir.path().join("catalogs").join("test_dataset.json");
+    assert!(catalog_path.exists());
+}
+
+#[tokio::test]
+async fn test_file_persist_reject_scenario() {
+    use data_pipeline_application::FilePersistWriter;
+    use data_pipeline_domain::{DataQualityResult, DqIssue, IssueSeverity, NormalizedData};
+    use tempfile::TempDir;
+
+    struct RejectQualityGate;
+
+    #[async_trait::async_trait]
+    impl data_pipeline_application::quality_gate::QualityGate for RejectQualityGate {
+        async fn check(&self, data: &NormalizedData) -> anyhow::Result<DataQualityResult> {
+            Ok(DataQualityResult {
+                decision: DqDecision::Reject,
+                quality_score: 0.0,
+                issues: vec![DqIssue {
+                    severity: IssueSeverity::Error,
+                    field: Some("price".to_string()),
+                    message: "Price out of range".to_string(),
+                }],
+                cleaned_data: data.clone(),
+            })
+        }
+    }
+
+    let temp_dir = TempDir::new().unwrap();
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(MockProvider::new()));
+
+    let manager = DataPipelineManager::new(
+        registry,
+        Box::new(PriorityRouteResolver::new()),
+        Box::new(BasicNormalizer::new()),
+        Box::new(RejectQualityGate),
+        Box::new(FilePersistWriter::new(temp_dir.path())),
+        Box::new(PipelineEventEmitter::new_noop()),
+    );
+
+    let req = IngestRequest {
+        dataset_request: DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            dataset_id: Some("test_dataset".to_string()),
+            symbol_scope: vec!["TEST".to_string()],
+            time_range: None,
+            forced_provider: None,
+        },
+    };
+
+    let result = manager.ingest_dataset(req).await.unwrap();
+
+    assert_eq!(result.decision, DqDecision::Reject);
+    assert!(result.quarantine_id.is_some());
+
+    let quarantine_files: Vec<_> = std::fs::read_dir(temp_dir.path().join("quarantine"))
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .collect();
+    assert_eq!(quarantine_files.len(), 1);
+}
