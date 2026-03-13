@@ -1,0 +1,44 @@
+{
+  "id": "web-workspace-mvp-vue",
+  "name": "web-workspace-mvp-vue",
+  "title": "Web: Workspace MVP (Vue)",
+  "description": "Implement the minimal Vue SPA workspace UI per docs/web/zquant_最小前端架构与UI_Vue版.md (Chart-first /workspace, right dock, bottom dock, HTTP polling).",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-14",
+  "completedAt": "2026-03-14",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
