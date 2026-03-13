@@ -13,8 +13,12 @@
 !/.claude/agents/
 !/.claude/agents/*.md
 /.cursor/
-.trellis/
-# Trellis local state (developer/workspace/tasks are machine-specific)
+
+# Trellis: keep local state ignored, but commit shared specs
+!.trellis/
+.trellis/*
+!.trellis/spec/
+!.trellis/spec/**
 
 # Editor/OS noise
 .DS_Store
