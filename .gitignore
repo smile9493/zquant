@@ -9,7 +9,9 @@
 
 # AI tooling / local state
 /.agents/
-/.claude/
+/.claude/*
+!/.claude/agents/
+!/.claude/agents/*.md
 /.cursor/
 .trellis/
 # Trellis local state (developer/workspace/tasks are machine-specific)
