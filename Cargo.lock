@@ -432,6 +432,7 @@ dependencies = [
  "data-pipeline-domain",
  "job-domain",
  "job-events",
+ "metrics",
  "serde",
  "serde_json",
  "tempfile",

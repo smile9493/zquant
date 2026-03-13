@@ -1,6 +1,7 @@
 pub mod events;
 pub mod job_handler;
 pub mod manager;
+pub mod metrics;
 pub mod normalizer;
 pub mod persist;
 pub mod provider_registry;

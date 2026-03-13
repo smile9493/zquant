@@ -824,3 +824,221 @@ async fn test_file_persist_reject_scenario() {
         .collect();
     assert_eq!(quarantine_files.len(), 1);
 }
+
+#[tokio::test]
+async fn test_observability_metrics_no_panic() {
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(MockProvider::new()));
+
+    let manager = DataPipelineManager::new(
+        registry,
+        Box::new(PriorityRouteResolver::new()),
+        Box::new(BasicNormalizer::new()),
+        Box::new(BasicQualityGate::new()),
+        Box::new(InMemoryPersistWriter::new()),
+        Box::new(PipelineEventEmitter::new_noop()),
+    );
+
+    let req = IngestRequest {
+        dataset_request: DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            dataset_id: None,
+            symbol_scope: vec!["TEST".to_string()],
+            time_range: None,
+            forced_provider: None,
+        },
+    };
+
+    let result = manager.ingest_dataset(req).await;
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_observability_emit_events_in_degraded_path() {
+    use data_pipeline_domain::{DataQualityResult, DqIssue, IssueSeverity, NormalizedData};
+
+    struct DegradedQualityGate;
+
+    #[async_trait::async_trait]
+    impl data_pipeline_application::quality_gate::QualityGate for DegradedQualityGate {
+        async fn check(&self, data: &NormalizedData) -> anyhow::Result<DataQualityResult> {
+            Ok(DataQualityResult {
+                decision: DqDecision::Degraded,
+                quality_score: 0.7,
+                issues: vec![DqIssue {
+                    severity: IssueSeverity::Warning,
+                    field: Some("price".to_string()),
+                    message: "Minor issue".to_string(),
+                }],
+                cleaned_data: data.clone(),
+            })
+        }
+    }
+
+    let bus = Arc::new(InMemoryEventBus::new(10));
+    let mut rx = bus.subscribe();
+
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(MockProvider::new()));
+
+    let manager = DataPipelineManager::new(
+        registry,
+        Box::new(PriorityRouteResolver::new()),
+        Box::new(BasicNormalizer::new()),
+        Box::new(DegradedQualityGate),
+        Box::new(InMemoryPersistWriter::new()),
+        Box::new(PipelineEventEmitter::new(bus.clone())),
+    );
+
+    let req = IngestRequest {
+        dataset_request: DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            dataset_id: None,
+            symbol_scope: vec!["TEST".to_string()],
+            time_range: None,
+            forced_provider: None,
+        },
+    };
+
+    let result = manager.ingest_dataset(req).await.unwrap();
+    assert_eq!(result.decision, DqDecision::Degraded);
+
+    let mut fetched_count = 0;
+    let mut gate_count = 0;
+    let mut ingested_count = 0;
+    let mut degraded_count = 0;
+
+    while let Ok(event) = rx.try_recv() {
+        match event {
+            Event::DatasetFetched(_) => fetched_count += 1,
+            Event::DatasetGateCompleted(_) => gate_count += 1,
+            Event::DatasetIngested(_) => ingested_count += 1,
+            Event::DqDegraded(_) => degraded_count += 1,
+            _ => {}
+        }
+    }
+
+    assert_eq!(fetched_count, 1, "Should emit dataset_fetched event");
+    assert_eq!(gate_count, 1, "Should emit gate_completed event");
+    assert_eq!(ingested_count, 1, "Should emit dataset_ingested event");
+    assert_eq!(degraded_count, 1, "Should emit dq_degraded event");
+}
+
+#[tokio::test]
+async fn test_observability_metrics_recorded() {
+    use metrics::{Counter, Histogram, Key, KeyName, Metadata, Recorder, SharedString, Unit};
+    use std::sync::Mutex;
+
+    struct TestCounter {
+        name: String,
+        labels: String,
+        data: Arc<Mutex<Vec<(String, String, u64)>>>,
+    }
+
+    impl metrics::CounterFn for TestCounter {
+        fn increment(&self, value: u64) {
+            self.data.lock().unwrap().push((self.name.clone(), self.labels.clone(), value));
+        }
+
+        fn absolute(&self, _value: u64) {}
+    }
+
+    struct TestHistogram {
+        name: String,
+        labels: String,
+        data: Arc<Mutex<Vec<(String, String, f64)>>>,
+    }
+
+    impl metrics::HistogramFn for TestHistogram {
+        fn record(&self, value: f64) {
+            self.data.lock().unwrap().push((self.name.clone(), self.labels.clone(), value));
+        }
+    }
+
+    struct TestRecorder {
+        counters: Arc<Mutex<Vec<(String, String, u64)>>>,
+        histograms: Arc<Mutex<Vec<(String, String, f64)>>>,
+    }
+
+    impl Recorder for TestRecorder {
+        fn describe_counter(&self, _: KeyName, _: Option<Unit>, _: SharedString) {}
+        fn describe_gauge(&self, _: KeyName, _: Option<Unit>, _: SharedString) {}
+        fn describe_histogram(&self, _: KeyName, _: Option<Unit>, _: SharedString) {}
+
+        fn register_counter(&self, key: &Key, _: &Metadata<'_>) -> Counter {
+            let name = key.name().to_string();
+            let labels = format!("{:?}", key.labels().collect::<Vec<_>>());
+            Counter::from_arc(Arc::new(TestCounter {
+                name,
+                labels,
+                data: self.counters.clone(),
+            }))
+        }
+
+        fn register_gauge(&self, _: &Key, _: &Metadata<'_>) -> metrics::Gauge {
+            metrics::Gauge::noop()
+        }
+
+        fn register_histogram(&self, key: &Key, _: &Metadata<'_>) -> Histogram {
+            let name = key.name().to_string();
+            let labels = format!("{:?}", key.labels().collect::<Vec<_>>());
+            Histogram::from_arc(Arc::new(TestHistogram {
+                name,
+                labels,
+                data: self.histograms.clone(),
+            }))
+        }
+    }
+
+    let counters = Arc::new(Mutex::new(Vec::new()));
+    let histograms = Arc::new(Mutex::new(Vec::new()));
+
+    let recorder = TestRecorder {
+        counters: counters.clone(),
+        histograms: histograms.clone(),
+    };
+
+    metrics::set_global_recorder(recorder).ok();
+
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(MockProvider::new()));
+
+    let manager = DataPipelineManager::new(
+        registry,
+        Box::new(PriorityRouteResolver::new()),
+        Box::new(BasicNormalizer::new()),
+        Box::new(BasicQualityGate::new()),
+        Box::new(InMemoryPersistWriter::new()),
+        Box::new(PipelineEventEmitter::new_noop()),
+    );
+
+    let req = IngestRequest {
+        dataset_request: DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            dataset_id: None,
+            symbol_scope: vec!["TEST".to_string()],
+            time_range: None,
+            forced_provider: None,
+        },
+    };
+
+    let _result = manager.ingest_dataset(req).await.unwrap();
+
+    let counters_data = counters.lock().unwrap();
+    let histograms_data = histograms.lock().unwrap();
+
+    let has_ingest_counter = counters_data.iter().any(|(name, labels, _)| {
+        name == "pipeline_ingest_total" && labels.contains("decision")
+    });
+    assert!(has_ingest_counter, "Should record pipeline_ingest_total with decision label");
+
+    let has_stage_duration = histograms_data.iter().any(|(name, labels, _)| {
+        name == "pipeline_stage_duration_seconds" && labels.contains("stage")
+    });
+    assert!(has_stage_duration, "Should record pipeline_stage_duration_seconds with stage label");
+}
+
+

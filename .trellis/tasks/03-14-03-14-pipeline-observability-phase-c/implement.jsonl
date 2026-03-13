@@ -1,0 +1,5 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": "A:\\zquant\\docs\\data\\统一数据管道骨架设计说明_合并正式版.md", "reason": "Design doc (Phase C/20.4 observability requirements)"}
+{"file": "A:\\zquant\\crates\\data-pipeline-application\\src\\manager.rs", "reason": "Instrumentation target"}
+{"file": "A:\\zquant\\crates\\data-pipeline-application\\src\\events.rs", "reason": "Event emit observability"}
