@@ -38,25 +38,29 @@ impl DataPipelineManager {
         }
     }
 
+    #[tracing::instrument(skip(self), fields(capability = ?req.capability, market = ?req.market))]
     pub async fn fetch(&self, req: FetchRequest) -> anyhow::Result<RawData> {
         let candidates = self.registry.find_providers(req.capability, req.market);
         if candidates.is_empty() {
             anyhow::bail!("No provider found for {:?}/{:?}", req.capability, req.market);
         }
         let provider = candidates.into_iter().next().unwrap();
-        provider.fetch(req).await.map_err(|e| anyhow::anyhow!("Failed to fetch data: {}", e))
+        provider.fetch(req).await
+            .map_err(|e| anyhow::anyhow!("failed to fetch data from provider {}: {}", provider.provider_name(), e))
     }
 
+    #[tracing::instrument(skip(self), fields(capability = ?req.capability, market = ?req.market))]
     pub async fn fetch_dataset(&self, req: DatasetRequest) -> anyhow::Result<NormalizedData> {
         let candidates = self.registry.find_providers(req.capability, req.market);
         let provider = self.resolver.resolve(&req, candidates).await
-            .map_err(|e| anyhow::anyhow!("Failed to resolve provider: {}", e))?;
-        let raw = provider.fetch_dataset(req).await
-            .map_err(|e| anyhow::anyhow!("Failed to fetch dataset: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("failed to resolve provider for {:?}/{:?}: {}", req.capability, req.market, e))?;
+        let raw = provider.fetch_dataset(req.clone()).await
+            .map_err(|e| anyhow::anyhow!("failed to fetch dataset from provider {}: {}", provider.provider_name(), e))?;
         self.normalizer.normalize(raw).await
-            .map_err(|e| anyhow::anyhow!("Failed to normalize data: {}", e))
+            .map_err(|e| anyhow::anyhow!("failed to normalize data: {}", e))
     }
 
+    #[tracing::instrument(skip(self), fields(capability = ?req.dataset_request.capability, market = ?req.dataset_request.market))]
     pub async fn ingest_dataset(&self, req: IngestRequest) -> anyhow::Result<IngestResult> {
         use chrono::Utc;
         use data_pipeline_domain::DqDecision;
@@ -65,11 +69,11 @@ impl DataPipelineManager {
         let dr = &req.dataset_request;
 
         let normalized = self.fetch_dataset(dr.clone()).await
-            .map_err(|e| anyhow::anyhow!("Failed to fetch dataset for ingestion: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("failed to fetch dataset for ingestion: {}", e))?;
 
         let candidates = self.registry.find_providers(dr.capability, dr.market);
         let provider = self.resolver.resolve(dr, candidates).await
-            .map_err(|e| anyhow::anyhow!("Failed to resolve provider for ingestion: {}", e))?;
+            .map_err(|e| anyhow::anyhow!("failed to resolve provider for ingestion: {}", e))?;
 
         self.event_emitter
             .emit_dataset_fetched(crate::events::DatasetFetchedEvent {

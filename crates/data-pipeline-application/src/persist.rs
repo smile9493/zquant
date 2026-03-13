@@ -6,6 +6,7 @@ use data_pipeline_domain::{
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+#[derive(Debug)]
 pub struct DatasetMetadata {
     pub dataset_id: String,
     pub provider: String,
@@ -16,11 +17,13 @@ pub struct DatasetMetadata {
     pub version: u64,
 }
 
+#[derive(Debug)]
 pub struct CatalogEntry {
     pub dataset_id: String,
     pub metadata: DatasetMetadata,
 }
 
+#[derive(Debug)]
 pub struct QuarantineReason {
     pub reasons: Vec<String>,
 }
@@ -66,6 +69,7 @@ impl InMemoryPersistWriter {
 
 #[async_trait]
 impl PersistWriter for InMemoryPersistWriter {
+    #[tracing::instrument(skip(self, data), fields(dataset_id = %metadata.dataset_id, row_count))]
     async fn write_dataset(
         &self,
         data: &NormalizedData,
@@ -74,9 +78,11 @@ impl PersistWriter for InMemoryPersistWriter {
         let storage_path = format!("memory://{}", metadata.dataset_id);
         let row_count = data.records.len();
 
+        tracing::Span::current().record("row_count", row_count);
+
         self.datasets
             .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to acquire lock on datasets: {}", e))?
+            .map_err(|e| anyhow::anyhow!("failed to acquire lock on datasets: {}", e))?
             .insert(metadata.dataset_id.clone(), data.clone());
 
         Ok(PersistReceipt {
@@ -86,11 +92,12 @@ impl PersistWriter for InMemoryPersistWriter {
         })
     }
 
+    #[tracing::instrument(skip(self, catalog), fields(catalog_id = %catalog.dataset_id))]
     async fn write_catalog(&self, catalog: &CatalogEntry) -> anyhow::Result<String> {
         let catalog_id = catalog.dataset_id.clone();
         self.catalogs
             .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to acquire lock on catalogs: {}", e))?
+            .map_err(|e| anyhow::anyhow!("failed to acquire lock on catalogs: {}", e))?
             .insert(catalog_id.clone(), CatalogEntry {
                 dataset_id: catalog.dataset_id.clone(),
                 metadata: DatasetMetadata {
@@ -106,15 +113,18 @@ impl PersistWriter for InMemoryPersistWriter {
         Ok(catalog_id)
     }
 
+    #[tracing::instrument(skip(self, data, _reason), fields(quarantine_id))]
     async fn write_quarantine(
         &self,
         data: &RawData,
         _reason: &QuarantineReason,
     ) -> anyhow::Result<QuarantineId> {
         let quarantine_id = format!("quarantine_{}", uuid::Uuid::new_v4());
+        tracing::Span::current().record("quarantine_id", quarantine_id.as_str());
+
         self.quarantines
             .lock()
-            .map_err(|e| anyhow::anyhow!("Failed to acquire lock on quarantines: {}", e))?
+            .map_err(|e| anyhow::anyhow!("failed to acquire lock on quarantines: {}", e))?
             .insert(quarantine_id.clone(), data.clone());
         Ok(quarantine_id)
     }

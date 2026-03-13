@@ -22,6 +22,7 @@ impl BasicQualityGate {
 
 #[async_trait]
 impl QualityGate for BasicQualityGate {
+    #[tracing::instrument(skip(self, data), fields(record_count = data.records.len(), quality_score, decision))]
     async fn check(&self, data: &NormalizedData) -> anyhow::Result<DataQualityResult> {
         let mut issues = Vec::new();
         let mut quality_score: f64 = 1.0;
@@ -59,6 +60,9 @@ impl QualityGate for BasicQualityGate {
         } else {
             DqDecision::Accept
         };
+
+        tracing::Span::current().record("quality_score", quality_score.max(0.0));
+        tracing::Span::current().record("decision", format!("{:?}", decision).as_str());
 
         Ok(DataQualityResult {
             decision,

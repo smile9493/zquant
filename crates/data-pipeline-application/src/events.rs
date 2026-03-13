@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use data_pipeline_domain::{Capability, DqDecision, DqIssue, Market};
+use job_events::bus::{Event, EventBus};
+use std::sync::Arc;
 use tracing::info;
 
 pub struct DatasetFetchedEvent {
@@ -54,17 +56,23 @@ pub trait EventEmitter: Send + Sync {
     async fn emit_dq_degraded(&self, event: DqDegradedEvent) -> anyhow::Result<()>;
 }
 
-pub struct PipelineEventEmitter;
-
-impl Default for PipelineEventEmitter {
-    fn default() -> Self {
-        Self
-    }
+pub struct PipelineEventEmitter {
+    bus: Option<Arc<dyn EventBus>>,
 }
 
 impl PipelineEventEmitter {
-    pub fn new() -> Self {
-        Self
+    pub fn new(bus: Arc<dyn EventBus>) -> Self {
+        Self { bus: Some(bus) }
+    }
+
+    pub fn new_noop() -> Self {
+        Self { bus: None }
+    }
+}
+
+impl Default for PipelineEventEmitter {
+    fn default() -> Self {
+        Self::new_noop()
     }
 }
 
@@ -77,6 +85,18 @@ impl EventEmitter for PipelineEventEmitter {
             row_count = event.row_count,
             "dataset.fetched"
         );
+
+        if let Some(bus) = &self.bus {
+            let bus_event = job_events::types::DatasetFetchedEvent {
+                dataset_id: event.dataset_id,
+                provider: event.provider,
+                capability: format!("{:?}", event.capability),
+                market: format!("{:?}", event.market),
+                timestamp: event.timestamp,
+                row_count: event.row_count,
+            };
+            bus.publish(Event::DatasetFetched(bus_event));
+        }
         Ok(())
     }
 
@@ -91,6 +111,17 @@ impl EventEmitter for PipelineEventEmitter {
             issue_count = event.issue_count,
             "dataset.gate.completed"
         );
+
+        if let Some(bus) = &self.bus {
+            let bus_event = job_events::types::DatasetGateCompletedEvent {
+                dataset_id: event.dataset_id,
+                decision: format!("{:?}", event.decision),
+                quality_score: event.quality_score,
+                issue_count: event.issue_count,
+                timestamp: event.timestamp,
+            };
+            bus.publish(Event::DatasetGateCompleted(bus_event));
+        }
         Ok(())
     }
 
@@ -102,6 +133,17 @@ impl EventEmitter for PipelineEventEmitter {
             catalog_id = %event.catalog_id,
             "dataset.ingested"
         );
+
+        if let Some(bus) = &self.bus {
+            let bus_event = job_events::types::DatasetIngestedEvent {
+                dataset_id: event.dataset_id,
+                decision: format!("{:?}", event.decision),
+                storage_path: event.storage_path,
+                catalog_id: event.catalog_id,
+                timestamp: event.timestamp,
+            };
+            bus.publish(Event::DatasetIngested(bus_event));
+        }
         Ok(())
     }
 
@@ -112,6 +154,16 @@ impl EventEmitter for PipelineEventEmitter {
             reasons = ?event.reasons,
             "dq.rejection"
         );
+
+        if let Some(bus) = &self.bus {
+            let bus_event = job_events::types::DqRejectionEvent {
+                quarantine_id: event.quarantine_id,
+                dataset_id: event.dataset_id,
+                reasons: event.reasons,
+                timestamp: event.timestamp,
+            };
+            bus.publish(Event::DqRejection(bus_event));
+        }
         Ok(())
     }
 
@@ -122,6 +174,20 @@ impl EventEmitter for PipelineEventEmitter {
             issue_count = event.issues.len(),
             "dq.degraded"
         );
+
+        if let Some(bus) = &self.bus {
+            let bus_event = job_events::types::DqDegradedEvent {
+                dataset_id: event.dataset_id,
+                quality_score: event.quality_score,
+                issues: event.issues.iter().map(|i| job_events::types::DqIssue {
+                    severity: format!("{:?}", i.severity),
+                    field: i.field.clone(),
+                    message: i.message.clone(),
+                }).collect(),
+                timestamp: event.timestamp,
+            };
+            bus.publish(Event::DqDegraded(bus_event));
+        }
         Ok(())
     }
 }

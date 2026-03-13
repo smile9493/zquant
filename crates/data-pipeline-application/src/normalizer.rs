@@ -23,6 +23,7 @@ impl BasicNormalizer {
 
 #[async_trait]
 impl Normalizer for BasicNormalizer {
+    #[tracing::instrument(skip(self, raw), fields(record_count))]
     async fn normalize(&self, raw: RawData) -> anyhow::Result<NormalizedData> {
         let records = raw
             .content
@@ -30,6 +31,8 @@ impl Normalizer for BasicNormalizer {
             .and_then(|v| v.as_array())
             .cloned()
             .unwrap_or_default();
+
+        tracing::Span::current().record("record_count", records.len());
 
         Ok(NormalizedData {
             records,

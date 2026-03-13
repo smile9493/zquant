@@ -430,10 +430,13 @@ dependencies = [
  "async-trait",
  "chrono",
  "data-pipeline-domain",
+ "job-domain",
+ "job-events",
  "serde",
  "serde_json",
  "tokio",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 

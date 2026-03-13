@@ -11,6 +11,11 @@ pub enum Event {
     AgentSpawnRequested(AgentSpawnRequested),
     AgentTaskScheduled(AgentTaskScheduled),
     AgentMessageProduced(AgentMessageProduced),
+    DatasetFetched(DatasetFetchedEvent),
+    DatasetGateCompleted(DatasetGateCompletedEvent),
+    DatasetIngested(DatasetIngestedEvent),
+    DqRejection(DqRejectionEvent),
+    DqDegraded(DqDegradedEvent),
 }
 
 pub trait EventBus: Send + Sync {

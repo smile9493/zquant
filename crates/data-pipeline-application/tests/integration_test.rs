@@ -1,8 +1,11 @@
 use data_pipeline_application::{
-    BasicNormalizer, BasicQualityGate, DataPipelineManager, InMemoryPersistWriter,
-    MockProvider, PipelineEventEmitter, PriorityRouteResolver, ProviderRegistry,
+    BasicNormalizer, BasicQualityGate, DataPipelineJobHandler, DataPipelineManager,
+    InMemoryPersistWriter, MockProvider, PipelineEventEmitter, PriorityRouteResolver,
+    ProviderRegistry,
 };
 use data_pipeline_domain::{Capability, DatasetRequest, DqDecision, IngestRequest, Market};
+use job_domain::{JobContext, JobHandler};
+use job_events::bus::{Event, EventBus, InMemoryEventBus};
 use std::sync::Arc;
 
 #[tokio::test]
@@ -16,7 +19,7 @@ async fn test_ingest_accept_scenario() {
         Box::new(BasicNormalizer::new()),
         Box::new(BasicQualityGate::new()),
         Box::new(InMemoryPersistWriter::new()),
-        Box::new(PipelineEventEmitter::new()),
+        Box::new(PipelineEventEmitter::new_noop()),
     );
 
     let req = IngestRequest {
@@ -68,7 +71,7 @@ async fn test_ingest_reject_scenario() {
         Box::new(BasicNormalizer::new()),
         Box::new(RejectQualityGate),
         Box::new(InMemoryPersistWriter::new()),
-        Box::new(PipelineEventEmitter::new()),
+        Box::new(PipelineEventEmitter::new_noop()),
     );
 
     let req = IngestRequest {
@@ -119,7 +122,7 @@ async fn test_ingest_degraded_scenario() {
         Box::new(BasicNormalizer::new()),
         Box::new(DegradedQualityGate),
         Box::new(InMemoryPersistWriter::new()),
-        Box::new(PipelineEventEmitter::new()),
+        Box::new(PipelineEventEmitter::new_noop()),
     );
 
     let req = IngestRequest {
@@ -139,3 +142,82 @@ async fn test_ingest_degraded_scenario() {
     assert!(result.persist_receipt.is_some());
     assert!(result.quarantine_id.is_none());
 }
+
+#[tokio::test]
+async fn test_job_handler_integration() {
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(MockProvider::new()));
+
+    let manager = Arc::new(DataPipelineManager::new(
+        registry,
+        Box::new(PriorityRouteResolver::new()),
+        Box::new(BasicNormalizer::new()),
+        Box::new(BasicQualityGate::new()),
+        Box::new(InMemoryPersistWriter::new()),
+        Box::new(PipelineEventEmitter::new_noop()),
+    ));
+
+    let handler = DataPipelineJobHandler::new(manager);
+
+    let req = IngestRequest {
+        dataset_request: DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            dataset_id: None,
+            time_range: None,
+            forced_provider: None,
+        },
+    };
+
+    let ctx = JobContext {
+        job_id: "test_job".to_string(),
+        job_type: "ingest_dataset".to_string(),
+        payload: serde_json::to_value(&req).unwrap(),
+    };
+
+    let result = handler.handle(ctx).await.unwrap();
+    assert!(result.artifacts.is_some());
+}
+
+#[tokio::test]
+async fn test_eventbus_integration() {
+    let bus = Arc::new(InMemoryEventBus::new(10));
+    let mut rx = bus.subscribe();
+
+    let mut registry = ProviderRegistry::new();
+    registry.register(Arc::new(MockProvider::new()));
+
+    let manager = DataPipelineManager::new(
+        registry,
+        Box::new(PriorityRouteResolver::new()),
+        Box::new(BasicNormalizer::new()),
+        Box::new(BasicQualityGate::new()),
+        Box::new(InMemoryPersistWriter::new()),
+        Box::new(PipelineEventEmitter::new(bus.clone())),
+    );
+
+    let req = IngestRequest {
+        dataset_request: DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            dataset_id: None,
+            time_range: None,
+            forced_provider: None,
+        },
+    };
+
+    let _result = manager.ingest_dataset(req).await.unwrap();
+
+    let mut event_count = 0;
+    while let Ok(event) = rx.try_recv() {
+        match event {
+            Event::DatasetFetched(_) | Event::DatasetGateCompleted(_) | Event::DatasetIngested(_) => {
+                event_count += 1;
+            }
+            _ => {}
+        }
+    }
+
+    assert!(event_count >= 3);
+}
+
