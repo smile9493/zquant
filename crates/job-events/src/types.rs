@@ -74,3 +74,56 @@ pub struct AgentMessageProduced {
     pub content: serde_json::Value,
     pub ts: DateTime<Utc>,
 }
+
+// Data Pipeline Event Contracts
+// Note: These mirror data-pipeline-application event types for bus serialization
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatasetFetchedEvent {
+    pub dataset_id: String,
+    pub provider: String,
+    pub capability: String,
+    pub market: String,
+    pub timestamp: DateTime<Utc>,
+    pub row_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatasetGateCompletedEvent {
+    pub dataset_id: String,
+    pub decision: String,
+    pub quality_score: f64,
+    pub issue_count: usize,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DatasetIngestedEvent {
+    pub dataset_id: String,
+    pub decision: String,
+    pub storage_path: String,
+    pub catalog_id: String,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DqRejectionEvent {
+    pub quarantine_id: String,
+    pub dataset_id: String,
+    pub reasons: Vec<String>,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DqDegradedEvent {
+    pub dataset_id: String,
+    pub quality_score: f64,
+    pub issues: Vec<DqIssue>,
+    pub timestamp: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DqIssue {
+    pub severity: String,
+    pub field: Option<String>,
+    pub message: String,
+}
