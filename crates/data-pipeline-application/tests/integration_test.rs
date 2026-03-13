@@ -384,6 +384,21 @@ mod akshare_tests {
         }
     }
 
+    struct FakeErrorPythonRunner {
+        error_message: String,
+    }
+
+    #[async_trait::async_trait]
+    impl PythonRunner for FakeErrorPythonRunner {
+        async fn run_json(
+            &self,
+            _script_path: &Path,
+            _input: serde_json::Value,
+        ) -> anyhow::Result<serde_json::Value> {
+            Err(anyhow::anyhow!("{}", self.error_message))
+        }
+    }
+
     #[tokio::test]
     async fn test_akshare_provider_routability() {
         let fake_runner = Arc::new(FakePythonRunner {
@@ -506,6 +521,69 @@ mod akshare_tests {
         let result = provider.fetch_dataset(req).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("unsupported dataset_id"));
+    }
+
+    #[tokio::test]
+    async fn test_akshare_chinese_column_mapping() {
+        use data_pipeline_application::python_runner::SubprocessPythonRunner;
+        use std::path::PathBuf;
+
+        let script_path = PathBuf::from(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/python/test_chinese_column_mapping.py"
+        ));
+
+        let runner = SubprocessPythonRunner::new();
+        let input = serde_json::json!({
+            "symbol": "000001",
+            "start_date": "20240101",
+            "end_date": "20241231",
+            "adjust": ""
+        });
+
+        let result = runner.run_json(&script_path, input).await;
+        assert!(result.is_ok(), "Script execution failed: {:?}", result.err());
+
+        let output = result.unwrap();
+        let data_array = output.get("data").unwrap().as_array().unwrap();
+        assert!(!data_array.is_empty(), "Data array should not be empty");
+
+        let first_record = &data_array[0];
+
+        // Verify English column names are present
+        assert!(first_record.get("date").is_some(), "Missing 'date' field");
+        assert!(first_record.get("open").is_some(), "Missing 'open' field");
+        assert!(first_record.get("close").is_some(), "Missing 'close' field");
+        assert!(first_record.get("high").is_some(), "Missing 'high' field");
+        assert!(first_record.get("low").is_some(), "Missing 'low' field");
+        assert!(first_record.get("volume").is_some(), "Missing 'volume' field");
+
+        // Verify Chinese column names are NOT present
+        assert!(first_record.get("日期").is_none(), "Chinese column '日期' should be mapped");
+        assert!(first_record.get("开盘").is_none(), "Chinese column '开盘' should be mapped");
+    }
+
+    #[tokio::test]
+    async fn test_akshare_error_message_propagation() {
+        let fake_runner = Arc::new(FakeErrorPythonRunner {
+            error_message: "Failed to fetch data: symbol not found".to_string(),
+        });
+
+        let provider = AkshareProvider::new(fake_runner);
+        let req = DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+            symbol_scope: vec!["INVALID".to_string()],
+            time_range: None,
+            forced_provider: None,
+        };
+
+        let result = provider.fetch_dataset(req).await;
+        assert!(result.is_err());
+
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("symbol not found"));
     }
 }
 

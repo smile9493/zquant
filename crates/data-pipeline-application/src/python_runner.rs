@@ -78,6 +78,18 @@ impl PythonRunner for SubprocessPythonRunner {
             .map_err(|e| anyhow::anyhow!("failed to wait for python subprocess: {}", e))?;
 
         if !output.status.success() {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            // Try to parse stdout as error JSON first
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+                if let Some(msg) = json.get("message").and_then(|v| v.as_str()) {
+                    return Err(anyhow::anyhow!(
+                        "python subprocess failed (exit={:?}): {}",
+                        output.status.code(),
+                        msg
+                    ));
+                }
+            }
+            // Fallback to stderr
             let stderr = String::from_utf8_lossy(&output.stderr);
             return Err(anyhow::anyhow!(
                 "python subprocess failed (exit={:?}): {}",

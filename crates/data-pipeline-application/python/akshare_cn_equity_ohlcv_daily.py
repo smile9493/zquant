@@ -38,8 +38,21 @@ def main() -> int:
         adjust=adjust,
     )
 
-    # Normalize column names to a minimal OHLCV shape.
-    # We keep extra fields if present; Rust-side normalizer/DQ can choose what to use.
+    # Map Chinese column names to English contract fields
+    column_mapping = {
+        "日期": "date",
+        "开盘": "open",
+        "收盘": "close",
+        "最高": "high",
+        "最低": "low",
+        "成交量": "volume",
+    }
+    df = df.rename(columns=column_mapping)
+
+    # Convert date column to string for JSON serialization
+    if "date" in df.columns:
+        df["date"] = df["date"].astype(str)
+
     records = df.to_dict(orient="records")
 
     out = {"status": "success", "data": records}
