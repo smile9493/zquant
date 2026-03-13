@@ -93,6 +93,11 @@ try {
   Push-Location $repoRoot
   try {
     Invoke-Native @("cargo", "test", "-p", "job-store-pg")
+  } catch {
+    Write-Host "`n=== Test container logs (last 50 lines) ===" -ForegroundColor Yellow
+    & docker logs --tail 50 $ContainerName 2>&1
+    Write-Host "=== End of container logs ===`n" -ForegroundColor Yellow
+    throw
   } finally {
     Pop-Location
   }
