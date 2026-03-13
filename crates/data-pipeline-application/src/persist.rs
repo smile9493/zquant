@@ -5,6 +5,8 @@ use data_pipeline_domain::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
@@ -125,6 +127,24 @@ impl PersistWriter for InMemoryPersistWriter {
     }
 }
 
+fn to_dataset_key(dataset_id: &str) -> String {
+    let slug: String = dataset_id
+        .chars()
+        .filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-' || *c == '.')
+        .take(64)
+        .collect();
+
+    let mut hasher = DefaultHasher::new();
+    dataset_id.hash(&mut hasher);
+    let hash = hasher.finish();
+
+    if slug.is_empty() {
+        format!("{:x}", hash)
+    } else {
+        format!("{}_{:x}", slug, hash)
+    }
+}
+
 pub struct FilePersistWriter {
     base_dir: PathBuf,
 }
@@ -160,11 +180,13 @@ impl PersistWriter for FilePersistWriter {
         let row_count = data.records.len();
         tracing::Span::current().record("row_count", row_count);
 
-        let dataset_dir = self.datasets_dir().join(&metadata.dataset_id);
+        let dataset_key = to_dataset_key(&metadata.dataset_id);
+        let dataset_dir = self.datasets_dir().join(&dataset_key);
         tokio::fs::create_dir_all(&dataset_dir).await?;
 
-        let timestamp = Utc::now().format("%Y%m%d_%H%M%S").to_string();
-        let filename = format!("{}.jsonl", timestamp);
+        let timestamp_ms = Utc::now().timestamp_millis();
+        let rand_suffix: u32 = rand::random();
+        let filename = format!("{}_{:08x}.jsonl", timestamp_ms, rand_suffix);
         let file_path = dataset_dir.join(&filename);
 
         let mut lines = Vec::new();
@@ -173,7 +195,6 @@ impl PersistWriter for FilePersistWriter {
         }
         let content = lines.join("\n");
 
-        // Atomic write: temp file + rename
         let temp_path = dataset_dir.join(format!(".{}.tmp", filename));
         tokio::fs::write(&temp_path, content).await?;
         tokio::fs::rename(&temp_path, &file_path).await?;
@@ -188,14 +209,14 @@ impl PersistWriter for FilePersistWriter {
     #[tracing::instrument(skip(self, catalog), fields(catalog_id = %catalog.dataset_id))]
     async fn write_catalog(&self, catalog: &CatalogEntry) -> anyhow::Result<String> {
         let catalog_id = catalog.dataset_id.clone();
+        let dataset_key = to_dataset_key(&catalog_id);
         let catalog_dir = self.catalogs_dir();
         tokio::fs::create_dir_all(&catalog_dir).await?;
 
-        let filename = format!("{}.json", catalog_id);
+        let filename = format!("{}.json", dataset_key);
         let file_path = catalog_dir.join(&filename);
         let content = serde_json::to_string_pretty(catalog)?;
 
-        // Atomic write: temp file + rename
         let temp_path = catalog_dir.join(format!(".{}.tmp", filename));
         tokio::fs::write(&temp_path, content).await?;
         tokio::fs::rename(&temp_path, &file_path).await?;

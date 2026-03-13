@@ -433,6 +433,7 @@ dependencies = [
  "job-domain",
  "job-events",
  "metrics",
+ "rand",
  "serde",
  "serde_json",
  "tempfile",

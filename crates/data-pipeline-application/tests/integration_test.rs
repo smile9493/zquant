@@ -639,8 +639,12 @@ mod akshare_tests {
         let receipt = result.persist_receipt.unwrap();
         assert!(std::path::Path::new(&receipt.storage_path).exists());
 
-        let catalog_path = temp_dir.path().join("catalogs").join("cn_equity.ohlcv.daily.json");
-        assert!(catalog_path.exists());
+        let catalog_dir = temp_dir.path().join("catalogs");
+        let catalog_files: Vec<_> = std::fs::read_dir(&catalog_dir)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .collect();
+        assert_eq!(catalog_files.len(), 1, "Should have exactly one catalog file");
     }
 
     #[tokio::test]
@@ -761,8 +765,12 @@ async fn test_file_persist_accept_scenario() {
     let receipt = result.persist_receipt.unwrap();
     assert!(std::path::Path::new(&receipt.storage_path).exists());
 
-    let catalog_path = temp_dir.path().join("catalogs").join("test_dataset.json");
-    assert!(catalog_path.exists());
+    let catalog_dir = temp_dir.path().join("catalogs");
+    let catalog_files: Vec<_> = std::fs::read_dir(&catalog_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .collect();
+    assert_eq!(catalog_files.len(), 1, "Should have exactly one catalog file");
 }
 
 #[tokio::test]
@@ -1041,4 +1049,129 @@ async fn test_observability_metrics_recorded() {
     assert!(has_stage_duration, "Should record pipeline_stage_duration_seconds with stage label");
 }
 
+// ============================================================================
+// File Persistence Robustness Tests
+// ============================================================================
+
+#[tokio::test]
+async fn test_file_persist_no_collision_same_dataset_id() {
+    use data_pipeline_application::{FilePersistWriter, persist::PersistWriter};
+    use data_pipeline_domain::NormalizedData;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let writer = FilePersistWriter::new(temp_dir.path());
+
+    let metadata = data_pipeline_application::persist::DatasetMetadata {
+        dataset_id: "test_dataset".to_string(),
+        provider: "test".to_string(),
+        capability: Capability::Ohlcv,
+        market: Market::UsEquity,
+        available_at: Some(chrono::Utc::now()),
+        point_in_time: None,
+        version: 1,
+    };
+
+    let data = NormalizedData {
+        records: vec![serde_json::json!({"test": "data1"})],
+        metadata: serde_json::json!({}),
+    };
+
+    let receipt1 = writer.write_dataset(&data, &metadata).await.unwrap();
+    let receipt2 = writer.write_dataset(&data, &metadata).await.unwrap();
+
+    assert_ne!(receipt1.storage_path, receipt2.storage_path, "Two writes should produce different files");
+
+    assert!(std::path::Path::new(&receipt1.storage_path).exists());
+    assert!(std::path::Path::new(&receipt2.storage_path).exists());
+}
+
+#[tokio::test]
+async fn test_file_persist_path_safety() {
+    use data_pipeline_application::{FilePersistWriter, persist::PersistWriter};
+    use data_pipeline_domain::NormalizedData;
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let writer = FilePersistWriter::new(temp_dir.path());
+
+    let unsafe_ids = vec![
+        "..\\..\\evil",
+        "../../../etc/passwd",
+        "C:\\Windows\\System32\\evil",
+        "/etc/evil",
+        "test/../../../evil",
+    ];
+
+    let data = NormalizedData {
+        records: vec![serde_json::json!({"test": "data"})],
+        metadata: serde_json::json!({}),
+    };
+
+    for unsafe_id in unsafe_ids {
+        let metadata = data_pipeline_application::persist::DatasetMetadata {
+            dataset_id: unsafe_id.to_string(),
+            provider: "test".to_string(),
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            available_at: Some(chrono::Utc::now()),
+            point_in_time: None,
+            version: 1,
+        };
+
+        let receipt = writer.write_dataset(&data, &metadata).await.unwrap();
+        let path = std::path::Path::new(&receipt.storage_path);
+
+        assert!(path.starts_with(temp_dir.path()),
+            "Path {} should be within base_dir for dataset_id: {}",
+            receipt.storage_path, unsafe_id);
+    }
+}
+
+#[tokio::test]
+async fn test_catalog_idempotency() {
+    use data_pipeline_application::{FilePersistWriter, persist::PersistWriter};
+    use tempfile::TempDir;
+
+    let temp_dir = TempDir::new().unwrap();
+    let writer = FilePersistWriter::new(temp_dir.path());
+
+    let catalog1 = data_pipeline_application::persist::CatalogEntry {
+        dataset_id: "test_dataset".to_string(),
+        metadata: data_pipeline_application::persist::DatasetMetadata {
+            dataset_id: "test_dataset".to_string(),
+            provider: "provider1".to_string(),
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            available_at: Some(chrono::Utc::now()),
+            point_in_time: None,
+            version: 1,
+        },
+    };
+
+    let catalog2 = data_pipeline_application::persist::CatalogEntry {
+        dataset_id: "test_dataset".to_string(),
+        metadata: data_pipeline_application::persist::DatasetMetadata {
+            dataset_id: "test_dataset".to_string(),
+            provider: "provider2".to_string(),
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            available_at: Some(chrono::Utc::now()),
+            point_in_time: None,
+            version: 2,
+        },
+    };
+
+    let id1 = writer.write_catalog(&catalog1).await.unwrap();
+    let id2 = writer.write_catalog(&catalog2).await.unwrap();
+
+    assert_eq!(id1, id2, "Catalog ID should be the same for same dataset_id");
+
+    let catalog_files: Vec<_> = std::fs::read_dir(temp_dir.path().join("catalogs"))
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .collect();
+
+    assert_eq!(catalog_files.len(), 1, "Should have exactly one catalog file (latest pointer)");
+}
 
