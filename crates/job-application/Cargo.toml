@@ -10,5 +10,11 @@ license.workspace = true
 anyhow.workspace = true
 job-domain = { path = "../job-domain" }
 job-store-pg = { path = "../job-store-pg" }
+job-events = { path = "../job-events" }
 serde_json.workspace = true
 tracing.workspace = true
+tokio = { workspace = true, features = ["full"] }
+axum.workspace = true
+serde.workspace = true
+chrono.workspace = true
+async-trait.workspace = true

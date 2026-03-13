@@ -1173,9 +1173,15 @@ name = "job-application"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
+ "axum 0.7.9",
+ "chrono",
  "job-domain",
+ "job-events",
  "job-store-pg",
+ "serde",
  "serde_json",
+ "tokio",
  "tracing",
 ]
 
@@ -1223,7 +1229,27 @@ dependencies = [
  "rdkafka",
  "serde",
  "serde_json",
+ "tokio",
+ "tracing",
  "uuid",
+]
+
+[[package]]
+name = "job-kernel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.7.9",
+ "job-application",
+ "job-domain",
+ "job-events",
+ "job-store-pg",
+ "serde_json",
+ "sqlx",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -1256,8 +1282,11 @@ name = "job-store-pg"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
+ "job-application",
  "job-domain",
+ "job-events",
  "serde_json",
  "sqlx",
  "tokio",
@@ -2765,6 +2794,7 @@ dependencies = [
  "bytes",
  "libc",
  "mio",
+ "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2 0.6.3",

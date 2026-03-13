@@ -60,7 +60,6 @@ impl From<JobRow> for Job {
     }
 }
 
-
 pub struct JobStore {
     pool: PgPool,
 }
@@ -83,7 +82,7 @@ impl JobStore {
         // Check idempotency if key provided
         if let Some(ref key) = idempotency_key {
             if let Some(existing_job_id) = sqlx::query_scalar::<_, String>(
-                "SELECT job_id FROM jobs_idempotency WHERE idempotency_key = $1"
+                "SELECT job_id FROM jobs_idempotency WHERE idempotency_key = $1",
             )
             .bind(key)
             .fetch_optional(&mut *tx)
@@ -94,7 +93,7 @@ impl JobStore {
                     "SELECT id, job_id, job_type, status, payload, progress, error,
                             artifacts, executor_id, stop_requested, stop_reason,
                             lease_until_ms, lease_version, version, created_at, updated_at
-                     FROM jobs WHERE job_id = $1"
+                     FROM jobs WHERE job_id = $1",
                 )
                 .bind(&existing_job_id)
                 .fetch_one(&mut *tx)
@@ -114,7 +113,7 @@ impl JobStore {
              VALUES ($1, $2, 'queued', $3, $4, $5, $5)
              RETURNING id, job_id, job_type, status, payload, progress, error,
                        artifacts, executor_id, stop_requested, stop_reason,
-                       lease_until_ms, lease_version, version, created_at, updated_at"
+                       lease_until_ms, lease_version, version, created_at, updated_at",
         )
         .bind(&job_id)
         .bind(&job_type)
@@ -127,16 +126,44 @@ impl JobStore {
         // Insert idempotency record if key provided
         if let Some(key) = idempotency_key {
             let expires_at = now + chrono::Duration::days(7);
-            sqlx::query(
+            let insert_result = sqlx::query(
                 "INSERT INTO jobs_idempotency (idempotency_key, job_id, created_at, expires_at)
-                 VALUES ($1, $2, $3, $4)"
+                 VALUES ($1, $2, $3, $4)",
             )
             .bind(&key)
             .bind(&job_id)
             .bind(now)
             .bind(expires_at)
             .execute(&mut *tx)
-            .await?;
+            .await;
+
+            if let Err(err) = insert_result {
+                if is_unique_violation(&err) {
+                    // Another transaction already reserved this idempotency key.
+                    // Return the canonical job bound to the key.
+                    tx.rollback().await?;
+
+                    let existing_job_id = sqlx::query_scalar::<_, String>(
+                        "SELECT job_id FROM jobs_idempotency WHERE idempotency_key = $1",
+                    )
+                    .bind(&key)
+                    .fetch_one(&self.pool)
+                    .await?;
+
+                    let existing_job = sqlx::query_as::<_, JobRow>(
+                        "SELECT id, job_id, job_type, status, payload, progress, error,
+                                artifacts, executor_id, stop_requested, stop_reason,
+                                lease_until_ms, lease_version, version, created_at, updated_at
+                         FROM jobs WHERE job_id = $1",
+                    )
+                    .bind(&existing_job_id)
+                    .fetch_one(&self.pool)
+                    .await?;
+                    return Ok(existing_job.into());
+                }
+
+                return Err(err.into());
+            }
         }
 
         tx.commit().await?;
@@ -149,7 +176,7 @@ impl JobStore {
             "SELECT id, job_id, job_type, status, payload, progress, error,
                     artifacts, executor_id, stop_requested, stop_reason,
                     lease_until_ms, lease_version, version, created_at, updated_at
-             FROM jobs WHERE job_id = $1"
+             FROM jobs WHERE job_id = $1",
         )
         .bind(job_id)
         .fetch_optional(&self.pool)
@@ -171,7 +198,7 @@ impl JobStore {
              )
              RETURNING id, job_id, job_type, status, payload, progress, error,
                        artifacts, executor_id, stop_requested, stop_reason,
-                       lease_until_ms, lease_version, version, created_at, updated_at"
+                       lease_until_ms, lease_version, version, created_at, updated_at",
         )
         .bind(Utc::now())
         .bind(now_ms)
@@ -199,7 +226,7 @@ impl JobStore {
              WHERE status = 'queued' AND stop_requested = false
              AND job_type = ANY($1)
              ORDER BY priority DESC, created_at ASC
-             FOR UPDATE SKIP LOCKED LIMIT $2"
+             FOR UPDATE SKIP LOCKED LIMIT $2",
         )
         .bind(allowed_job_types)
         .bind(limit)
@@ -218,7 +245,7 @@ impl JobStore {
              WHERE id = ANY($4)
              RETURNING id, job_id, job_type, status, payload, progress, error,
                        artifacts, executor_id, stop_requested, stop_reason,
-                       lease_until_ms, lease_version, version, created_at, updated_at"
+                       lease_until_ms, lease_version, version, created_at, updated_at",
         )
         .bind(executor_id)
         .bind(lease_until)
@@ -253,7 +280,7 @@ impl JobStore {
             "UPDATE jobs SET status = $1, artifacts = $2, error = $3,
              lease_until_ms = NULL, updated_at = $4
              WHERE job_id = $5 AND status = 'running'
-             AND executor_id = $6 AND lease_version = $7"
+             AND executor_id = $6 AND lease_version = $7",
         )
         .bind(status_str)
         .bind(artifacts)
@@ -282,7 +309,7 @@ impl JobStore {
         let result = sqlx::query(
             "UPDATE jobs SET lease_until_ms = $1, updated_at = $2
              WHERE job_id = $3 AND status = 'running'
-             AND executor_id = $4 AND lease_version = $5"
+             AND executor_id = $4 AND lease_version = $5",
         )
         .bind(lease_until)
         .bind(now)
@@ -299,7 +326,7 @@ impl JobStore {
     pub async fn request_stop(&self, job_id: &str, reason: Option<String>) -> Result<()> {
         sqlx::query(
             "UPDATE jobs SET stop_requested = true, stop_reason = $1, updated_at = $2
-             WHERE job_id = $3"
+             WHERE job_id = $3",
         )
         .bind(reason)
         .bind(Utc::now())
@@ -311,3 +338,9 @@ impl JobStore {
     }
 }
 
+fn is_unique_violation(error: &sqlx::Error) -> bool {
+    match error {
+        sqlx::Error::Database(db_error) => db_error.code().as_deref() == Some("23505"),
+        _ => false,
+    }
+}
