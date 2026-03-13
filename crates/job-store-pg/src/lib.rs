@@ -185,6 +185,22 @@ impl JobStore {
         Ok(job.map(Into::into))
     }
 
+    /// List all jobs ordered by created_at desc
+    pub async fn list_jobs(&self) -> Result<Vec<Job>> {
+        let jobs = sqlx::query_as::<_, JobRow>(
+            "SELECT id, job_id, job_type, status, payload, progress, error,
+                    artifacts, executor_id, stop_requested, stop_reason,
+                    lease_until_ms, lease_version, version, created_at, updated_at
+             FROM jobs
+             ORDER BY created_at DESC
+             LIMIT 100",
+        )
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(jobs.into_iter().map(Into::into).collect())
+    }
+
     /// Reap expired jobs (lease timeout)
     pub async fn reap_expired_jobs(&self, now_ms: i64, batch: i32) -> Result<Vec<Job>> {
         let jobs = sqlx::query_as::<_, JobRow>(

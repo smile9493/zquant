@@ -7,7 +7,7 @@ static TEST_DB_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 async fn setup_test_db() -> Result<PgPool> {
     let database_url = std::env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost/webquant_test".to_string());
+        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:15432/postgres".to_string());
 
     let pool = PgPool::connect(&database_url).await?;
 

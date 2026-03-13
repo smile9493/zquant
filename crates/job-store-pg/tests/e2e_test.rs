@@ -24,8 +24,22 @@ impl JobHandler for TestHandler {
     }
 }
 
-#[sqlx::test(migrations = "../../migrations")]
-async fn test_e2e_job_lifecycle(pool: PgPool) -> Result<()> {
+async fn setup_test_db() -> Result<PgPool> {
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:15432/postgres_e2e".to_string());
+
+    let pool = PgPool::connect(&database_url).await?;
+
+    sqlx::query("TRUNCATE TABLE jobs, jobs_idempotency CASCADE")
+        .execute(&pool)
+        .await?;
+
+    Ok(pool)
+}
+
+#[tokio::test]
+async fn test_e2e_job_lifecycle() -> Result<()> {
+    let pool = setup_test_db().await?;
     let store = Arc::new(JobStore::new(pool));
     let bus = Arc::new(InMemoryEventBus::new(100)) as Arc<dyn EventBus>;
     let mut events_rx = bus.subscribe();
@@ -45,6 +59,9 @@ async fn test_e2e_job_lifecycle(pool: PgPool) -> Result<()> {
     tokio::spawn(async move {
         runner_clone.run_claim_loop().await;
     });
+
+    // Give runner time to start before creating job
+    sleep(Duration::from_millis(200)).await;
 
     let job = store
         .create_job("test".to_string(), serde_json::json!({}), 0, None)
@@ -105,6 +122,7 @@ where
                     Event::AgentSpawnRequested(e) => e.job_id == job_id,
                     Event::AgentTaskScheduled(_) => false,
                     Event::AgentMessageProduced(e) => e.job_id == job_id,
+                    _ => false,
                 };
 
                 if matches_job && predicate(&event) {

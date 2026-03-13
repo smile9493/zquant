@@ -1208,12 +1208,15 @@ dependencies = [
  "async-trait",
  "axum 0.7.9",
  "chrono",
+ "http-body-util",
  "job-domain",
  "job-events",
  "job-store-pg",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
+ "tower 0.4.13",
  "tracing",
 ]
 
