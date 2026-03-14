@@ -44,7 +44,7 @@
     </div>
     <div class="workspace-content">
       <div class="left-sidebar">
-        <!-- Minimal sidebar -->
+        <LeftSidebar />
       </div>
       <div class="center-area">
         <div class="chart-panel">
@@ -86,6 +86,7 @@ import DataExplorerPanel from '../components/DataExplorerPanel.vue'
 import GovernanceSummaryPanel from '../components/GovernanceSummaryPanel.vue'
 import JobsTab from '../components/JobsTab.vue'
 import LogsTab from '../components/LogsTab.vue'
+import LeftSidebar from '../components/LeftSidebar.vue'
 
 const route = useRoute()
 const router = useRouter()
