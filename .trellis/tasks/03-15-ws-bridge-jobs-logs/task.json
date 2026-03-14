@@ -1,0 +1,56 @@
+{
+  "id": "ws-bridge-jobs-logs",
+  "name": "ws-bridge-jobs-logs",
+  "title": "Phase D: WebSocket bridge (jobs/logs)",
+  "description": "Add minimal WebSocket bridge to stream job state and logs/events to the Vue workspace; keep HTTP endpoints + polling as fallback.",
+  "status": "planning",
+  "dev_type": "fullstack",
+  "scope": "web",
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-15",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "crates/job-application/src/api.rs",
+    "crates/job-events/src/bus.rs",
+    "crates/job-events/src/types.rs",
+    "apps/job-kernel/src/main.rs",
+    "apps/job-ws-bridge/src/main.rs",
+    "web/src/stores/jobs.ts",
+    "web/src/components/JobsTab.vue",
+    "web/src/components/LogsTab.vue",
+    "web/src/shared/api/index.ts",
+    "web/src/shared/api/client.ts",
+    "web/src/views/WorkspacePage.vue"
+  ],
+  "notes": "Plan-only: implement WS endpoint (/ws) and client bridge with graceful HTTP polling fallback; PG remains SSOT; event bus is in-memory so client must resync via HTTP snapshot on reconnect.",
+  "meta": {}
+}

@@ -92,4 +92,11 @@ Implemented in commit `f6099d1`:
 
 ## Review Outcome
 
-**REVIEW: FAIL**
+**REVIEW: PASS**
+
+Follow-up fix applied in commit `8d492bb`:
+- `LeftSidebar` now exposes add/remove favorites UI controls.
+- `TopBar` refresh now uses `try/finally` (tracked in its own task).
+
+Verification:
+- `npm run build`: PASS

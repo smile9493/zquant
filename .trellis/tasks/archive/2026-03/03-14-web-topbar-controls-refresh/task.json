@@ -24,11 +24,26 @@
   "commit": "a39d731",
   "pr_url": null,
   "subtasks": [
-    { "name": "Define TopBar UX controls", "status": "completed" },
-    { "name": "Define unified refresh semantics", "status": "completed" },
-    { "name": "Wire symbol/timeframe to URL", "status": "completed" },
-    { "name": "Wire refresh to Vue Query", "status": "completed" },
-    { "name": "Run npm build + review gate", "status": "completed" }
+    {
+      "name": "Define TopBar UX controls",
+      "status": "completed"
+    },
+    {
+      "name": "Define unified refresh semantics",
+      "status": "completed"
+    },
+    {
+      "name": "Wire symbol/timeframe to URL",
+      "status": "completed"
+    },
+    {
+      "name": "Wire refresh to Vue Query",
+      "status": "completed"
+    },
+    {
+      "name": "Run npm build + review gate",
+      "status": "completed"
+    }
   ],
   "children": [],
   "parent": null,
