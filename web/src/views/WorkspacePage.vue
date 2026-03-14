@@ -106,12 +106,15 @@ const { data: health } = useQuery({
 
 const handleRefresh = async () => {
   isRefreshing.value = true
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: ['kline'] }),
-    queryClient.invalidateQueries({ queryKey: ['jobs'] }),
-    selectedJobId.value ? queryClient.invalidateQueries({ queryKey: ['logs', selectedJobId.value] }) : Promise.resolve()
-  ])
-  isRefreshing.value = false
+  try {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['kline'] }),
+      queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+      selectedJobId.value ? queryClient.invalidateQueries({ queryKey: ['logs', selectedJobId.value] }) : Promise.resolve()
+    ])
+  } finally {
+    isRefreshing.value = false
+  }
 }
 
 // Initialize from URL on mount
