@@ -8,6 +8,25 @@
           {{ health.status }}
         </span>
       </div>
+      <div class="top-bar-center">
+        <input
+          v-model="store.symbol"
+          class="symbol-input"
+          placeholder="Symbol"
+        />
+        <select v-model="store.timeframe" class="timeframe-select">
+          <option value="1m">1m</option>
+          <option value="5m">5m</option>
+          <option value="15m">15m</option>
+          <option value="1h">1h</option>
+          <option value="4h">4h</option>
+          <option value="1D">1D</option>
+          <option value="1W">1W</option>
+        </select>
+        <button class="refresh-btn" @click="handleRefresh" :disabled="isRefreshing">
+          {{ isRefreshing ? '刷新中...' : '刷新' }}
+        </button>
+      </div>
       <div class="top-bar-controls">
         <button
           :class="['panel-btn', { active: rightPanel === 'data-explorer' }]"
@@ -57,8 +76,9 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useQuery } from '@tanstack/vue-query'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { useWorkspaceStore } from '../stores/workspace'
+import { useJobStore } from '../stores/jobs'
 import { storeToRefs } from 'pinia'
 import { api } from '../shared/api'
 import PriceChartPanel from '../components/PriceChartPanel.vue'
@@ -70,14 +90,28 @@ import LogsTab from '../components/LogsTab.vue'
 const route = useRoute()
 const router = useRouter()
 const store = useWorkspaceStore()
+const jobStore = useJobStore()
+const queryClient = useQueryClient()
 const { symbol, timeframe, rightPanel } = storeToRefs(store)
+const { selectedJobId } = storeToRefs(jobStore)
 const activeTab = ref('jobs')
+const isRefreshing = ref(false)
 
 const { data: health } = useQuery({
   queryKey: ['health'],
   queryFn: api.getHealth,
   refetchInterval: 10000
 })
+
+const handleRefresh = async () => {
+  isRefreshing.value = true
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ['kline'] }),
+    queryClient.invalidateQueries({ queryKey: ['jobs'] }),
+    selectedJobId.value ? queryClient.invalidateQueries({ queryKey: ['logs', selectedJobId.value] }) : Promise.resolve()
+  ])
+  isRefreshing.value = false
+}
 
 // Initialize from URL on mount
 onMounted(() => {
@@ -123,6 +157,63 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.top-bar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.symbol-input {
+  width: 100px;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 13px;
+}
+
+.symbol-input:focus {
+  outline: none;
+  border-color: #26a69a;
+}
+
+.timeframe-select {
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: #e0e0e0;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.timeframe-select:focus {
+  outline: none;
+  border-color: #26a69a;
+}
+
+.refresh-btn {
+  padding: 4px 12px;
+  background: rgba(38, 166, 154, 0.15);
+  border: 1px solid rgba(38, 166, 154, 0.4);
+  border-radius: 4px;
+  color: #26a69a;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover:not(:disabled) {
+  background: rgba(38, 166, 154, 0.25);
+  border-color: #26a69a;
+}
+
+.refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .title {
