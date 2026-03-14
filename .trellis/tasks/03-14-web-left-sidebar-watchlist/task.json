@@ -3,7 +3,7 @@
   "name": "web-left-sidebar-watchlist",
   "title": "Web: Left Sidebar Watchlist/Favorites",
   "description": "Implement minimal left sidebar: watchlist/favorites/quick-nav to set symbol and improve Workspace usability; local-only persistence allowed.",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": "frontend",
   "scope": null,
   "priority": "P2",
@@ -14,12 +14,8 @@
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
-  "current_phase": 0,
+  "current_phase": 2,
   "next_action": [
-    {
-      "phase": 1,
-      "action": "implement"
-    },
     {
       "phase": 2,
       "action": "check"
@@ -33,14 +29,14 @@
       "action": "create-pr"
     }
   ],
-  "commit": null,
+  "commit": "f6099d1",
   "pr_url": null,
   "subtasks": [
-    { "name": "Decide sidebar interaction pattern", "status": "pending" },
-    { "name": "Define local persistence schema", "status": "pending" },
-    { "name": "Implement quick-nav default symbols", "status": "pending" },
+    { "name": "Decide sidebar interaction pattern", "status": "completed" },
+    { "name": "Define local persistence schema", "status": "completed" },
+    { "name": "Implement quick-nav default symbols", "status": "completed" },
     { "name": "Implement favorites add/remove", "status": "pending" },
-    { "name": "Run npm build + review gate", "status": "pending" }
+    { "name": "Run npm build + review gate", "status": "completed" }
   ],
   "children": [],
   "parent": null,
@@ -49,6 +45,6 @@
     "web/src/views/WorkspacePage.vue",
     "web/src/stores/workspace.ts"
   ],
-  "notes": "",
+  "notes": "Left sidebar and persistence are in place, but UI still lacks add/remove favorites controls; see PRD review findings.",
   "meta": {}
 }

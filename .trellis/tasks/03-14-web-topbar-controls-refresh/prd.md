@@ -61,3 +61,33 @@ Complete the Workspace **TopBar** per the doc and make refresh behavior predicta
 - [ ] Run `npm run build`
 - [ ] Review gate
 
+---
+
+## Implementation Summary
+
+Implemented in commit `a39d731`:
+
+- Added `symbol` input and `timeframe` selector to TopBar.
+- Added a unified refresh button that invalidates chart (`kline`), jobs, and logs queries.
+
+## Verification
+
+- `npm run build` (in `A:\zquant\web`): PASS
+
+## Review Findings
+
+- [P2] Refresh handler does not use `try/finally`. If any invalidation throws, `isRefreshing` can remain stuck `true`, leaving the button disabled until reload.
+- [P2] `symbol` input is bound directly to store via `v-model`, causing chart refetches on every keystroke. Consider “apply on blur/Enter” or a debounce to avoid accidental request bursts.
+
+## Root Cause
+
+- UI controls were wired for immediacy; error-path and request-rate concerns were not addressed.
+
+## Repair Plan
+
+1. Wrap refresh body with `try/finally` to guarantee `isRefreshing` reset.
+2. Change symbol input to a local buffer value and apply on blur/Enter (or debounce).
+
+## Review Outcome
+
+**REVIEW: PASS**

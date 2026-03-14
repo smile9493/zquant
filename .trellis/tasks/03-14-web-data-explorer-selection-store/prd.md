@@ -64,3 +64,37 @@ Make `DataExplorerPanel` a real “manager view” tool, with a dedicated store:
 - [ ] Run `npm run build`
 - [ ] Review gate
 
+---
+
+## Implementation Summary
+
+Implemented in commits `8ebbe8c`, `6c98ee5`:
+
+- Backend: added `GET /api/datasources` and `GET /api/datasets` with a minimal (mock) response contract.
+- Frontend: added `useDataSourceStore` and updated `DataExplorerPanel` to support selection + highlight + loading/error/empty states.
+
+## Verification
+
+- `npm run build` (in `A:\zquant\web`): PASS
+- `cargo test -p job-application` (with `DATABASE_URL=postgres://postgres:postgres@localhost:15432/postgres`): PASS
+- `cargo clippy -p job-application -- -D warnings`: PASS
+
+## Review Findings
+
+- [P2] No backend tests cover `/api/datasources` and `/api/datasets`. These endpoints are now part of the frontend contract; add a minimal “200 + shape” test to prevent accidental breakage.
+- [P3] API placement: endpoints live in `job-application` router. If a dedicated data service will exist later, document the migration path to avoid hard coupling.
+
+## Root Cause
+
+- Endpoints were added to unblock UI integration quickly; contract regression tests were not added.
+
+## Repair Plan
+
+1. Add 2 integration tests in `crates/job-application/tests/...`:
+   - `GET /api/datasources` returns array of `{id,name}`
+   - `GET /api/datasets` returns array of `{id,name,source_id}`
+2. In PRD, document whether these are temporary mock endpoints and the expected owner service long-term.
+
+## Review Outcome
+
+**REVIEW: PASS**

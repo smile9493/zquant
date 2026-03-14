@@ -57,3 +57,39 @@ Implement the doc’s minimal Left Sidebar affordances so `/workspace` is usable
 - [ ] Run `npm run build`
 - [ ] Review gate
 
+---
+
+## Implementation Summary
+
+Implemented in commit `f6099d1`:
+
+- Added `useWatchlistStore` with `localStorage` persistence.
+- Added `LeftSidebar` component with quick list and favorites list.
+- Wired sidebar symbol selection into workspace `symbol`.
+
+## Verification
+
+- `npm run build` (in `A:\zquant\web`): PASS
+
+## Review Findings
+
+- [P1] Acceptance criteria “User can add/remove favorites” is not satisfied by the UI: the store supports add/remove, but the sidebar component only renders favorites and offers no add/remove interaction.
+- [P2] `localStorage` is accessed at module evaluation time (inside `loadFromStorage`). This is OK for a browser-only SPA, but it is fragile if we ever run SSR/tests in a non-DOM environment. A simple `typeof window !== 'undefined'` guard would make it robust.
+
+## Root Cause
+
+- Store API was implemented first; UI affordances to call `addFavorite/removeFavorite` were not added.
+
+## Repair Plan
+
+1. Add UI controls:
+   - allow adding current workspace symbol to favorites
+   - allow removing an existing favorite (e.g., a small “x” button with stopPropagation)
+2. Add a minimal guard around storage access to avoid runtime errors outside browser contexts.
+3. Re-run `npm run build` and do a quick manual test:
+   - add favorite persists after reload
+   - remove favorite persists after reload
+
+## Review Outcome
+
+**REVIEW: FAIL**

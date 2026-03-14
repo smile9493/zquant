@@ -3,44 +3,32 @@
   "name": "web-data-explorer-selection-store",
   "title": "Web: Data Explorer Selection + DataSource Store",
   "description": "Introduce useDataSourceStore and make DataExplorerPanel support datasource/dataset selection (manager view), not just list rendering.",
-  "status": "planning",
+  "status": "completed",
   "dev_type": "frontend",
   "scope": null,
   "priority": "P1",
   "creator": "zquant",
   "assignee": "zquant",
   "createdAt": "2026-03-14",
-  "completedAt": null,
+  "completedAt": "2026-03-14",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
-  "current_phase": 0,
+  "current_phase": 3,
   "next_action": [
-    {
-      "phase": 1,
-      "action": "implement"
-    },
-    {
-      "phase": 2,
-      "action": "check"
-    },
-    {
-      "phase": 3,
-      "action": "finish"
-    },
     {
       "phase": 4,
       "action": "create-pr"
     }
   ],
-  "commit": null,
+  "commit": "6c98ee5",
   "pr_url": null,
   "subtasks": [
-    { "name": "Confirm datasources/datasets payloads", "status": "pending" },
-    { "name": "Define store state + actions", "status": "pending" },
-    { "name": "Implement selection UI + highlight", "status": "pending" },
-    { "name": "Add user-safe empty/error states", "status": "pending" },
-    { "name": "Run npm build + review gate", "status": "pending" }
+    { "name": "Confirm datasources/datasets payloads", "status": "completed" },
+    { "name": "Define store state + actions", "status": "completed" },
+    { "name": "Implement selection UI + highlight", "status": "completed" },
+    { "name": "Add user-safe empty/error states", "status": "completed" },
+    { "name": "Run npm build + review gate", "status": "completed" }
   ],
   "children": [],
   "parent": null,
@@ -50,6 +38,6 @@
     "web/src/shared/api/",
     "web/src/stores/"
   ],
-  "notes": "",
+  "notes": "Added useDataSourceStore and selectable DataExplorerPanel. Backend mock endpoints added in 8ebbe8c; missing regression tests noted in PRD.",
   "meta": {}
 }
