@@ -67,6 +67,19 @@ pub struct LogEntry {
     pub message: String,
 }
 
+#[derive(Serialize)]
+pub struct DataSource {
+    pub id: String,
+    pub name: String,
+}
+
+#[derive(Serialize)]
+pub struct DataSet {
+    pub id: String,
+    pub name: String,
+    pub source_id: String,
+}
+
 async fn create_job(
     State(state): State<ApiState>,
     Json(req): Json<CreateJobRequest>,
@@ -226,6 +239,34 @@ async fn get_job_logs(
     Ok(Json(vec![]))
 }
 
+async fn get_datasources() -> Json<Vec<DataSource>> {
+    Json(vec![
+        DataSource {
+            id: "yahoo".to_string(),
+            name: "Yahoo Finance".to_string(),
+        },
+        DataSource {
+            id: "alphavantage".to_string(),
+            name: "Alpha Vantage".to_string(),
+        },
+    ])
+}
+
+async fn get_datasets() -> Json<Vec<DataSet>> {
+    Json(vec![
+        DataSet {
+            id: "us_stocks".to_string(),
+            name: "US Stocks".to_string(),
+            source_id: "yahoo".to_string(),
+        },
+        DataSet {
+            id: "crypto".to_string(),
+            name: "Cryptocurrencies".to_string(),
+            source_id: "yahoo".to_string(),
+        },
+    ])
+}
+
 pub fn router(state: ApiState) -> Router {
     Router::new()
         .route("/system/health", get(get_health))
@@ -234,6 +275,8 @@ pub fn router(state: ApiState) -> Router {
         .route("/jobs/:id/stop", post(stop_job))
         .route("/jobs/:id/retry", post(retry_job))
         .route("/jobs/:id/logs", get(get_job_logs))
+        .route("/api/datasources", get(get_datasources))
+        .route("/api/datasets", get(get_datasets))
         .with_state(state)
 }
 
