@@ -1,0 +1,55 @@
+{
+  "id": "web-topbar-controls-refresh",
+  "name": "web-topbar-controls-refresh",
+  "title": "Web: TopBar Controls and Unified Refresh",
+  "description": "Complete Workspace TopBar per doc: mode + symbol/timeframe controls + unified manual refresh + health indicator (HTTP-only).",
+  "status": "planning",
+  "dev_type": "frontend",
+  "scope": null,
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-14",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [
+    { "name": "Define TopBar UX controls", "status": "pending" },
+    { "name": "Define unified refresh semantics", "status": "pending" },
+    { "name": "Wire symbol/timeframe to URL", "status": "pending" },
+    { "name": "Wire refresh to Vue Query", "status": "pending" },
+    { "name": "Run npm build + review gate", "status": "pending" }
+  ],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "docs/web/zquant_最小前端架构与UI_Vue版.md",
+    "web/src/views/WorkspacePage.vue",
+    "web/src/stores/workspace.ts",
+    "web/src/shared/api/"
+  ],
+  "notes": "",
+  "meta": {}
+}

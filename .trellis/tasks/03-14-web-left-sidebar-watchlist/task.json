@@ -1,0 +1,54 @@
+{
+  "id": "web-left-sidebar-watchlist",
+  "name": "web-left-sidebar-watchlist",
+  "title": "Web: Left Sidebar Watchlist/Favorites",
+  "description": "Implement minimal left sidebar: watchlist/favorites/quick-nav to set symbol and improve Workspace usability; local-only persistence allowed.",
+  "status": "planning",
+  "dev_type": "frontend",
+  "scope": null,
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-14",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [
+    { "name": "Decide sidebar interaction pattern", "status": "pending" },
+    { "name": "Define local persistence schema", "status": "pending" },
+    { "name": "Implement quick-nav default symbols", "status": "pending" },
+    { "name": "Implement favorites add/remove", "status": "pending" },
+    { "name": "Run npm build + review gate", "status": "pending" }
+  ],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "docs/web/zquant_最小前端架构与UI_Vue版.md",
+    "web/src/views/WorkspacePage.vue",
+    "web/src/stores/workspace.ts"
+  ],
+  "notes": "",
+  "meta": {}
+}

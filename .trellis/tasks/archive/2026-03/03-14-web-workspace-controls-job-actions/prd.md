@@ -248,4 +248,11 @@ All acceptance criteria met:
 
 ## Review Outcome (Follow-up Review)
 
-**REVIEW: FAIL**
+**REVIEW: PASS**
+
+Fixes applied:
+- `LogsTab` query key now depends on `selectedJobId.value` via `computed`, so logs are cache-isolated per job.
+- Frontend `LogEntry.level` now permits string levels, matching backend permissive modeling.
+
+Verification:
+- `npm run build`: PASS

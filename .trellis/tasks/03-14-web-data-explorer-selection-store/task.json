@@ -1,0 +1,55 @@
+{
+  "id": "web-data-explorer-selection-store",
+  "name": "web-data-explorer-selection-store",
+  "title": "Web: Data Explorer Selection + DataSource Store",
+  "description": "Introduce useDataSourceStore and make DataExplorerPanel support datasource/dataset selection (manager view), not just list rendering.",
+  "status": "planning",
+  "dev_type": "frontend",
+  "scope": null,
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-14",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [
+    { "name": "Confirm datasources/datasets payloads", "status": "pending" },
+    { "name": "Define store state + actions", "status": "pending" },
+    { "name": "Implement selection UI + highlight", "status": "pending" },
+    { "name": "Add user-safe empty/error states", "status": "pending" },
+    { "name": "Run npm build + review gate", "status": "pending" }
+  ],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "docs/web/zquant_最小前端架构与UI_Vue版.md",
+    "web/src/components/DataExplorerPanel.vue",
+    "web/src/shared/api/",
+    "web/src/stores/"
+  ],
+  "notes": "",
+  "meta": {}
+}
