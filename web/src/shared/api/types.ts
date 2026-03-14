@@ -20,7 +20,7 @@ export interface JobSummary {
 
 export interface LogEntry {
   timestamp: string
-  level: 'info' | 'warn' | 'error'
+  level: 'info' | 'warn' | 'error' | string
   message: string
 }
 

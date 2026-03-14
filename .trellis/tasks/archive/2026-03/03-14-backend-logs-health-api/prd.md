@@ -133,3 +133,17 @@ All acceptance criteria met:
 - [x] Implementation documented in this PRD
 - [x] Clippy checks pass
 
+---
+
+## Review Findings (Code Quality Follow-up)
+
+- [P2] `LogEntry.level` is modeled as a free-form `String`. The frontend currently treats it as a strict enum (`info|warn|error`). Before real log emission is implemented, we should decide and enforce a canonical set (backend enum + serde) or document a mapping strategy.
+  - file: `A:\zquant\crates\job-application\src\api.rs`
+
+## Suggested Repair
+
+If we choose strict levels for Phase 1:
+- replace `level: String` with an enum and serialize as lowercase strings.
+
+If we choose permissive levels:
+- update frontend type and styling to have a safe fallback class for unknown levels.

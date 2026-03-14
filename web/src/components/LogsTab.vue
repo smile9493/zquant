@@ -25,6 +25,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { api } from '../shared/api'
 import { useJobStore } from '../stores/jobs'
@@ -34,10 +35,10 @@ const store = useJobStore()
 const { selectedJobId } = storeToRefs(store)
 
 const { data, isLoading, error, refetch, isFetching } = useQuery({
-  queryKey: ['logs', selectedJobId],
+  queryKey: computed(() => ['logs', selectedJobId.value]),
   queryFn: () => api.getJobLogs(selectedJobId.value!),
   refetchInterval: 5000,
-  enabled: !!selectedJobId.value
+  enabled: computed(() => !!selectedJobId.value)
 })
 </script>
 

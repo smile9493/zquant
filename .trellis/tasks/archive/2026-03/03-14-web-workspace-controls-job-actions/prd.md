@@ -210,3 +210,42 @@ All acceptance criteria met:
 - [x] Errors are user-safe (message.error with normalized messages)
 - [x] npm run build passes
 
+---
+
+## Review Findings (Code Quality Follow-up)
+
+- [P1] Vue Query `LogsTab` uses a `Ref` object inside `queryKey` (`['logs', selectedJobId]`). When the selected job changes, the key does not change, so logs for different jobs share one cache entry. This can cause incorrect logs after fast job switching and breaks query isolation expectations.
+  - file: `A:\zquant\web\src\components\LogsTab.vue`
+- [P2] Cross-layer contract mismatch: backend `LogEntry.level` is `String`, but frontend `LogEntry.level` is `'info' | 'warn' | 'error'`. If backend later emits other levels, UI type/style assumptions break.
+  - files: `A:\zquant\crates\job-application\src\api.rs`, `A:\zquant\web\src\shared\api\types.ts`
+- [P3] Health query is duplicated (WorkspacePage + GovernanceSummaryPanel) with the same key and polling interval. It is not wrong, but it is unnecessary complexity and can confuse “source of truth” for health display.
+  - files: `A:\zquant\web\src\views\WorkspacePage.vue`, `A:\zquant\web\src\components\GovernanceSummaryPanel.vue`
+
+## Root Cause
+
+- Query key design did not follow “key must be derived from stable primitive values” (Ref identity is stable, Ref value is not).
+- Contracts were not enforced at the boundary (backend/ frontend level enums).
+
+## Repair Plan
+
+1. Fix `LogsTab` query key to depend on the selected id value: `['logs', selectedJobId.value]`.
+2. Decide the canonical log level set:
+   - either restrict backend to `info|warn|error` (recommended for Phase 1), or
+   - loosen frontend type and map unknown levels to a safe fallback.
+3. Optionally centralize health query into one owner (e.g. only `GovernanceSummaryPanel` or only `WorkspacePage`) to reduce duplication.
+4. Re-run `npm run build` and do a quick manual switch-job stress test (fast switching between jobs, ensure logs do not flicker into the wrong job).
+
+## Updated Checklist
+
+- [ ] Fix logs query key isolation
+- [ ] Align log level contract (backend + frontend)
+- [ ] (Optional) Deduplicate health polling
+- [ ] Review gate: `npm run build` + manual fast-switch check
+
+## Verification (Follow-up Review)
+
+- `npm run build`: PASS (build does not catch the runtime cache-key issue)
+
+## Review Outcome (Follow-up Review)
+
+**REVIEW: FAIL**
