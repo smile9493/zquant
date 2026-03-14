@@ -200,3 +200,102 @@ async fn test_retry_job_success() {
     assert_eq!(new_job["payload"]["key"].as_str().unwrap(), "value");
     assert_eq!(new_job["status"].as_str().unwrap(), "queued");
 }
+
+#[tokio::test]
+async fn test_get_health() {
+    let state = setup_state().await;
+    let app = job_application::api::router(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/system/health")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let health: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(health["status"].as_str().unwrap(), "healthy");
+    assert_eq!(health["mode"].as_str().unwrap(), "research");
+    assert!(health.get("last_error").is_some());
+}
+
+#[tokio::test]
+async fn test_get_job_logs_404() {
+    let state = setup_state().await;
+    let app = job_application::api::router(state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/jobs/nonexistent/logs")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn test_get_job_logs_empty() {
+    let state = setup_state().await;
+    let app = job_application::api::router(state.clone());
+
+    // Create a test job
+    let create_req = json!({
+        "job_type": "test_job",
+        "payload": {"key": "value"}
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/jobs")
+                .header("content-type", "application/json")
+                .body(Body::from(create_req.to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let create_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let job_id = create_response["job_id"].as_str().unwrap();
+
+    // Get logs for the job
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri(&format!("/jobs/{}/logs", job_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let logs: Vec<serde_json::Value> = serde_json::from_slice(&body).unwrap();
+
+    // Should return empty array (no log collection yet)
+    assert!(logs.is_empty());
+}

@@ -3,31 +3,19 @@
   "name": "web-workspace-controls-job-actions",
   "title": "Web: Workspace Controls and Job Actions",
   "description": "Enhance the completed workspace MVP with TopBar controls, job stop/retry actions, and better selected-job logs usability within the existing HTTP-only Phase 1 frontend architecture.",
-  "status": "planning",
-  "dev_type": null,
+  "status": "completed",
+  "dev_type": "frontend",
   "scope": null,
   "priority": "P2",
   "creator": "zquant",
   "assignee": "zquant",
   "createdAt": "2026-03-14",
-  "completedAt": null,
+  "completedAt": "2026-03-14",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
-  "current_phase": 0,
+  "current_phase": 3,
   "next_action": [
-    {
-      "phase": 1,
-      "action": "implement"
-    },
-    {
-      "phase": 2,
-      "action": "check"
-    },
-    {
-      "phase": 3,
-      "action": "finish"
-    },
     {
       "phase": 4,
       "action": "create-pr"
@@ -35,10 +23,27 @@
   ],
   "commit": null,
   "pr_url": null,
-  "subtasks": [],
+  "subtasks": [
+    { "name": "Confirm backend endpoints availability", "status": "completed" },
+    { "name": "Define JobSummary / Job types", "status": "completed" },
+    { "name": "Introduce useJobStore (selected job + refresh)", "status": "completed" },
+    { "name": "TopBar: mode/symbol/timeframe/refresh/health", "status": "completed" },
+    { "name": "JobsTab: selection + metadata", "status": "completed" },
+    { "name": "JobsTab: stop/retry confirm + refresh", "status": "completed" },
+    { "name": "LogsTab: selected context + empty state", "status": "completed" },
+    { "name": "LogsTab: manual refresh + polling", "status": "completed" },
+    { "name": "User-safe error handling", "status": "completed" },
+    { "name": "Run npm build + review gate", "status": "completed" }
+  ],
   "children": [],
   "parent": null,
-  "relatedFiles": [],
-  "notes": "",
+  "relatedFiles": [
+    "web/src/views/WorkspacePage.vue",
+    "web/src/components/JobsTab.vue",
+    "web/src/components/LogsTab.vue",
+    "web/src/stores/jobs.ts",
+    "web/src/shared/api/index.ts"
+  ],
+  "notes": "Most functionality was already implemented. Added TopBar health indicator and mode badge.",
   "meta": {}
 }

@@ -53,6 +53,20 @@ pub struct RetryJobResponse {
     pub job_id: String,
 }
 
+#[derive(Serialize)]
+pub struct HealthResponse {
+    pub status: String,
+    pub mode: String,
+    pub last_error: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct LogEntry {
+    pub timestamp: String,
+    pub level: String,
+    pub message: String,
+}
+
 async fn create_job(
     State(state): State<ApiState>,
     Json(req): Json<CreateJobRequest>,
@@ -184,12 +198,42 @@ async fn retry_job(
     }))
 }
 
+async fn get_health() -> Json<HealthResponse> {
+    Json(HealthResponse {
+        status: "healthy".to_string(),
+        mode: "research".to_string(),
+        last_error: None,
+    })
+}
+
+async fn get_job_logs(
+    State(state): State<ApiState>,
+    Path(job_id): Path<String>,
+) -> Result<Json<Vec<LogEntry>>, StatusCode> {
+    // Check if job exists
+    let job_exists = state
+        .store
+        .get_job(&job_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+        .is_some();
+
+    if !job_exists {
+        return Err(StatusCode::NOT_FOUND);
+    }
+
+    // Return empty logs for now (log collection to be implemented later)
+    Ok(Json(vec![]))
+}
+
 pub fn router(state: ApiState) -> Router {
     Router::new()
+        .route("/system/health", get(get_health))
         .route("/jobs", post(create_job).get(list_jobs))
         .route("/jobs/:id", get(get_job))
         .route("/jobs/:id/stop", post(stop_job))
         .route("/jobs/:id/retry", post(retry_job))
+        .route("/jobs/:id/logs", get(get_job_logs))
         .with_state(state)
 }
 

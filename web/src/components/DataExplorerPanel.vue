@@ -1,40 +1,40 @@
 <template>
   <div class="data-explorer">
-    <div class="panel-header">Data Explorer</div>
+    <div class="panel-header">数据浏览器</div>
     <div class="panel-content">
       <div class="control-group">
-        <label>Symbol</label>
+        <label>代码</label>
         <input
           v-model="localSymbol"
           @change="updateSymbol"
           class="symbol-input"
-          placeholder="Enter symbol"
+          placeholder="输入代码"
         />
       </div>
       <div class="control-group">
-        <label>Timeframe</label>
+        <label>时间周期</label>
         <select v-model="localTimeframe" @change="updateTimeframe" class="timeframe-select">
-          <option value="1m">1 Minute</option>
-          <option value="5m">5 Minutes</option>
-          <option value="15m">15 Minutes</option>
-          <option value="1h">1 Hour</option>
-          <option value="1D">1 Day</option>
-          <option value="1W">1 Week</option>
+          <option value="1m">1分钟</option>
+          <option value="5m">5分钟</option>
+          <option value="15m">15分钟</option>
+          <option value="1h">1小时</option>
+          <option value="1D">1天</option>
+          <option value="1W">1周</option>
         </select>
       </div>
       <div class="control-group">
-        <label>Data Sources</label>
+        <label>数据源</label>
         <div v-if="dataSources?.length" class="data-list">
           <div v-for="ds in dataSources" :key="ds.id" class="data-item">{{ ds.name }}</div>
         </div>
-        <div v-else class="data-empty">No sources</div>
+        <div v-else class="data-empty">暂无数据源</div>
       </div>
       <div class="control-group">
-        <label>Data Sets</label>
+        <label>数据集</label>
         <div v-if="dataSets?.length" class="data-list">
           <div v-for="ds in dataSets" :key="ds.id" class="data-item">{{ ds.name }}</div>
         </div>
-        <div v-else class="data-empty">No datasets</div>
+        <div v-else class="data-empty">暂无数据集</div>
       </div>
     </div>
   </div>

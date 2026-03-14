@@ -1,9 +1,18 @@
 import { apiClient } from './client'
-import type { Job, LogEntry, PriceBar, DataSource, DataSet } from './types'
+import type { JobSummary, LogEntry, PriceBar, DataSource, DataSet } from './types'
 
 export const api = {
-  async getJobs(): Promise<Job[]> {
+  async getJobs(): Promise<JobSummary[]> {
     const { data } = await apiClient.get('/jobs')
+    return data
+  },
+
+  async stopJob(jobId: string, reason?: string): Promise<void> {
+    await apiClient.post(`/jobs/${jobId}/stop`, reason ? { reason } : {})
+  },
+
+  async retryJob(jobId: string): Promise<{ job_id: string }> {
+    const { data } = await apiClient.post(`/jobs/${jobId}/retry`)
     return data
   },
 

@@ -7,10 +7,15 @@ export interface PriceBar {
   volume?: number
 }
 
-export interface Job {
-  id: string
-  status: 'pending' | 'running' | 'completed' | 'failed'
+export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'stopped' | 'reaped' | string
+
+export interface JobSummary {
+  job_id: string
+  job_type: string
+  status: JobStatus
+  stop_requested: boolean
   created_at: string
+  updated_at: string
 }
 
 export interface LogEntry {

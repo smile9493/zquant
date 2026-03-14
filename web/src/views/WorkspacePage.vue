@@ -1,19 +1,25 @@
 <template>
   <div class="workspace-page">
     <div class="top-bar">
-      <span>zQuant Workspace</span>
+      <div class="top-bar-left">
+        <span class="title">zQuant 工作区</span>
+        <span v-if="health?.mode" class="mode-badge">{{ health.mode }}</span>
+        <span v-if="health" :class="['health-indicator', health.status]" :title="health.last_error || ''">
+          {{ health.status }}
+        </span>
+      </div>
       <div class="top-bar-controls">
         <button
           :class="['panel-btn', { active: rightPanel === 'data-explorer' }]"
           @click="store.rightPanel = 'data-explorer'"
         >
-          Data
+          数据
         </button>
         <button
           :class="['panel-btn', { active: rightPanel === 'governance-summary' }]"
           @click="store.rightPanel = 'governance-summary'"
         >
-          Governance
+          治理
         </button>
       </div>
     </div>
@@ -37,10 +43,10 @@
     </div>
     <div class="bottom-dock">
       <a-tabs v-model:activeKey="activeTab">
-        <a-tab-pane key="jobs" tab="Jobs">
+        <a-tab-pane key="jobs" tab="任务">
           <JobsTab />
         </a-tab-pane>
-        <a-tab-pane key="logs" tab="Logs">
+        <a-tab-pane key="logs" tab="日志">
           <LogsTab />
         </a-tab-pane>
       </a-tabs>
@@ -51,8 +57,10 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useQuery } from '@tanstack/vue-query'
 import { useWorkspaceStore } from '../stores/workspace'
 import { storeToRefs } from 'pinia'
+import { api } from '../shared/api'
 import PriceChartPanel from '../components/PriceChartPanel.vue'
 import DataExplorerPanel from '../components/DataExplorerPanel.vue'
 import GovernanceSummaryPanel from '../components/GovernanceSummaryPanel.vue'
@@ -64,6 +72,12 @@ const router = useRouter()
 const store = useWorkspaceStore()
 const { symbol, timeframe, rightPanel } = storeToRefs(store)
 const activeTab = ref('jobs')
+
+const { data: health } = useQuery({
+  queryKey: ['health'],
+  queryFn: api.getHealth,
+  refetchInterval: 10000
+})
 
 // Initialize from URL on mount
 onMounted(() => {
@@ -103,6 +117,49 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
+}
+
+.top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title {
+  font-weight: 500;
+}
+
+.mode-badge {
+  padding: 2px 8px;
+  background: rgba(38, 166, 154, 0.15);
+  border: 1px solid rgba(38, 166, 154, 0.4);
+  border-radius: 3px;
+  color: #26a69a;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.health-indicator {
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.health-indicator.healthy {
+  background: rgba(56, 142, 60, 0.2);
+  color: #66bb6a;
+}
+
+.health-indicator.degraded {
+  background: rgba(245, 124, 0, 0.2);
+  color: #ffa726;
+}
+
+.health-indicator.unhealthy {
+  background: rgba(211, 47, 47, 0.2);
+  color: #ef5350;
 }
 
 .top-bar-controls {
@@ -180,6 +237,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 
 .bottom-dock {
   height: 200px;
+  margin-left: 48px;
   background: rgba(15, 15, 15, 0.9);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }

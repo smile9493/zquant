@@ -1,0 +1,4 @@
+{"file": ".claude/commands/trellis/finish-work.md", "reason": "Finish work checklist"}
+{"file": ".claude/commands/trellis/check-frontend.md", "reason": "Frontend check spec"}
+{"file": "A:\\zquant\\.trellis\\spec\\guides\\cross-layer-thinking-guide.md", "reason": "Review：字段/时间格式/错误处理"}
+{"file": "A:\\zquant\\docs\\web\\zquant_最小前端架构与UI_Vue版.md", "reason": "Review 对照：TopBar/Jobs/Logs/Governance/HTTP-only"}

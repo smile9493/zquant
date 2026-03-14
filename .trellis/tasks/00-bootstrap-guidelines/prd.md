@@ -26,6 +26,18 @@ Fill in the guideline files based on your **existing codebase**.
 | `.trellis/spec/backend/logging-guidelines.md` | Log levels, format, what to log |
 | `.trellis/spec/backend/quality-guidelines.md` | Code review standards, testing requirements |
 
+### Frontend Guidelines (Needed)
+
+This repo now contains a Vue 3 frontend (`A:\zquant\web`). Add a minimal frontend spec set so agents can follow project conventions:
+
+- `.trellis/spec/frontend/index.md` (导航 + 必读清单)
+- `.trellis/spec/frontend/component-guidelines.md` (Vue SFC structure, styling, naming)
+- `.trellis/spec/frontend/state-guidelines.md` (Pinia store patterns, URL-as-State rules)
+- `.trellis/spec/frontend/api-guidelines.md` (API client, error handling, typed DTOs)
+- `.trellis/spec/frontend/quality-guidelines.md` (build/test commands, review checklist)
+
+Non-goal: invent new architecture; document the conventions already used in `A:\zquant\web\src`.
+
 
 ### Thinking Guides (Optional)
 
@@ -85,9 +97,26 @@ AI needs to match existing patterns, not introduce new ones.
 When done:
 
 ```bash
-python3 ./.trellis/scripts/task.py finish
-python3 ./.trellis/scripts/task.py archive 00-bootstrap-guidelines
+python ./.trellis/scripts/task.py finish
+python ./.trellis/scripts/task.py archive 00-bootstrap-guidelines
 ```
+
+## Review Findings
+
+- [P2] 任务 PRD 仍然使用 `python3` 示例命令，与仓库 Windows 约束“始终使用 `python`，不要使用 `python3`”冲突。
+
+## Root Cause
+
+- 旧模板内容没有按仓库命令规范同步修正。
+
+## Repair Plan
+
+1. 保持所有 `.trellis` 任务文档中的命令示例统一使用 `python`。
+2. 后续新增任务时继续检查这类模板遗留项。
+
+## Review Outcome
+
+**REVIEW: FAIL**
 
 ---
 

@@ -1,0 +1,4 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": "A:\\zquant\\.trellis\\spec\\guides\\cross-layer-thinking-guide.md", "reason": "API↔UI 契约（jobs/health/logs）一致性检查"}
+{"file": "A:\\zquant\\docs\\web\\zquant_最小前端架构与UI_Vue版.md", "reason": "Front-end MVP+ 需求与 Phase C 顺序"}

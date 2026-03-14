@@ -1,15 +1,15 @@
 <template>
   <div class="governance-summary">
-    <div class="panel-header">Governance Summary</div>
+    <div class="panel-header">治理概览</div>
     <div class="panel-content">
-      <div v-if="isLoading" class="status-item">Loading...</div>
-      <div v-else-if="error" class="status-item error">Health check failed</div>
+      <div v-if="isLoading" class="status-item">加载中...</div>
+      <div v-else-if="error" class="status-item error">健康检查失败</div>
       <div v-else>
         <div class="status-item">
-          Status: <span :class="['status-badge', data?.status]">{{ data?.status || 'unknown' }}</span>
+          状态: <span :class="['status-badge', data?.status]">{{ data?.status || '未知' }}</span>
         </div>
-        <div v-if="data?.mode" class="status-item">Mode: {{ data.mode }}</div>
-        <div v-if="data?.last_error" class="status-item error-text">Last Error: {{ data.last_error }}</div>
+        <div v-if="data?.mode" class="status-item">模式: {{ data.mode }}</div>
+        <div v-if="data?.last_error" class="status-item error-text">最近错误: {{ data.last_error }}</div>
       </div>
     </div>
   </div>

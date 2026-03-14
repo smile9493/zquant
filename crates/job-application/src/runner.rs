@@ -12,6 +12,12 @@ pub struct HandlerRegistry {
     handlers: HashMap<String, Arc<dyn JobHandler>>,
 }
 
+impl Default for HandlerRegistry {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl HandlerRegistry {
     pub fn new() -> Self {
         Self {

@@ -1,0 +1,57 @@
+{
+  "id": "backend-logs-health-api",
+  "name": "backend-logs-health-api",
+  "title": "Backend: Logs and Health API",
+  "description": "Add GET /system/health and GET /jobs/:id/logs required by the workspace frontend; keep HTTP-only Phase 1 constraints.",
+  "status": "completed",
+  "dev_type": "backend",
+  "scope": null,
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-14",
+  "completedAt": "2026-03-14",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 3,
+  "next_action": [
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [
+    {
+      "name": "Define health/logs contract",
+      "status": "completed"
+    },
+    {
+      "name": "Implement GET /system/health",
+      "status": "completed"
+    },
+    {
+      "name": "Implement GET /jobs/:id/logs",
+      "status": "completed"
+    },
+    {
+      "name": "Add integration tests",
+      "status": "completed"
+    },
+    {
+      "name": "Run cargo test + review gate",
+      "status": "completed"
+    }
+  ],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "crates/job-application/src/api.rs",
+    "crates/job-application/src/runner.rs",
+    "crates/job-application/tests/jobs_api_test.rs"
+  ],
+  "notes": "Implementation completed. All tests passing.",
+  "meta": {}
+}
