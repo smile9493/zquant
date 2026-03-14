@@ -24,15 +24,33 @@
       </div>
       <div class="control-group">
         <label>数据源</label>
-        <div v-if="dataSources?.length" class="data-list">
-          <div v-for="ds in dataSources" :key="ds.id" class="data-item">{{ ds.name }}</div>
+        <div v-if="loadingDataSources" class="data-loading">加载中...</div>
+        <div v-else-if="errorDataSources" class="data-error">加载失败</div>
+        <div v-else-if="dataSources?.length" class="data-list">
+          <div
+            v-for="ds in dataSources"
+            :key="ds.id"
+            :class="['data-item', { selected: ds.id === selectedDataSourceId }]"
+            @click="selectDataSource(ds.id)"
+          >
+            {{ ds.name }}
+          </div>
         </div>
         <div v-else class="data-empty">暂无数据源</div>
       </div>
       <div class="control-group">
         <label>数据集</label>
-        <div v-if="dataSets?.length" class="data-list">
-          <div v-for="ds in dataSets" :key="ds.id" class="data-item">{{ ds.name }}</div>
+        <div v-if="loadingDataSets" class="data-loading">加载中...</div>
+        <div v-else-if="errorDataSets" class="data-error">加载失败</div>
+        <div v-else-if="dataSets?.length" class="data-list">
+          <div
+            v-for="ds in dataSets"
+            :key="ds.id"
+            :class="['data-item', { selected: ds.id === selectedDataSetId }]"
+            @click="selectDataSet(ds.id)"
+          >
+            {{ ds.name }}
+          </div>
         </div>
         <div v-else class="data-empty">暂无数据集</div>
       </div>
@@ -44,6 +62,8 @@
 import { ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useWorkspaceStore } from '../stores/workspace'
+import { useDataSourceStore } from '../stores/datasource'
+import { storeToRefs } from 'pinia'
 import { api } from '../shared/api'
 
 const props = defineProps<{
@@ -52,15 +72,17 @@ const props = defineProps<{
 }>()
 
 const store = useWorkspaceStore()
+const dataSourceStore = useDataSourceStore()
+const { selectedDataSourceId, selectedDataSetId } = storeToRefs(dataSourceStore)
 const localSymbol = ref(props.symbol)
 const localTimeframe = ref(props.timeframe)
 
-const { data: dataSources } = useQuery({
+const { data: dataSources, isLoading: loadingDataSources, error: errorDataSources } = useQuery({
   queryKey: ['datasources'],
   queryFn: api.getDataSources
 })
 
-const { data: dataSets } = useQuery({
+const { data: dataSets, isLoading: loadingDataSets, error: errorDataSets } = useQuery({
   queryKey: ['datasets'],
   queryFn: api.getDataSets
 })
@@ -74,6 +96,14 @@ const updateSymbol = () => {
 
 const updateTimeframe = () => {
   store.timeframe = localTimeframe.value
+}
+
+const selectDataSource = (id: string) => {
+  dataSourceStore.selectDataSource(id)
+}
+
+const selectDataSet = (id: string) => {
+  dataSourceStore.selectDataSet(id)
 }
 </script>
 
@@ -136,11 +166,36 @@ const updateTimeframe = () => {
   margin-bottom: 4px;
   font-size: 13px;
   color: #d0d0d0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.data-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.data-item.selected {
+  background: rgba(38, 166, 154, 0.2);
+  border: 1px solid rgba(38, 166, 154, 0.4);
+  color: #26a69a;
+}
+
+.data-empty,
+.data-loading,
+.data-error {
+  padding: 8px;
+  font-size: 13px;
 }
 
 .data-empty {
-  padding: 8px;
   color: #666;
-  font-size: 13px;
+}
+
+.data-loading {
+  color: #9e9e9e;
+}
+
+.data-error {
+  color: #ef5350;
 }
 </style>
