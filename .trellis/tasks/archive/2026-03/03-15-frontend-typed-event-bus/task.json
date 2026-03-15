@@ -1,0 +1,50 @@
+{
+  "id": "frontend-typed-event-bus",
+  "name": "frontend-typed-event-bus",
+  "title": "Phase D: Frontend typed event bus",
+  "description": "Introduce a typed frontend event bus layer on top of WebSocket messages to normalize snapshot/event/log handling and prepare for optimistic UI and agent panel features.",
+  "status": "completed",
+  "dev_type": "frontend",
+  "scope": "web",
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-15",
+  "completedAt": "2026-03-15",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": "031fb1c",
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "web/src/shared/ws/client.ts",
+    "web/src/stores/jobs.ts",
+    "web/src/components/JobsTab.vue",
+    "web/src/components/LogsTab.vue",
+    "web/src/views/WorkspacePage.vue"
+  ],
+  "notes": "Typed event bus implementation completed. Protocol types aligned with backend, decoder with complete field-level validation (6 fields for JobSummary), reducer handles incomplete events correctly. Vitest configured with 11 passing tests. All review rounds passed.",
+  "meta": {}
+}
