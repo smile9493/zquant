@@ -21,20 +21,21 @@
             <span class="job-type">{{ job.job_type }}</span>
             <span class="job-time">更新：{{ formatTime(job.updated_at) }}</span>
             <span v-if="job.stop_requested" class="job-stop">已请求停止</span>
+            <span v-if="(job as any)._retrying" class="job-retrying">重试中</span>
           </div>
         </div>
 
         <div class="job-right">
           <span :class="['job-status', `st-${String(job.status)}`]">{{ job.status }}</span>
           <div class="actions" @click.stop>
-            <a-button size="small" danger @click="openStop(job.job_id)">停止</a-button>
+            <a-button size="small" danger @click="openStop(job.job_id)" :disabled="pendingActions.has(job.job_id)">停止</a-button>
             <a-popconfirm
               title="确认重试该任务？"
               ok-text="重试"
               cancel-text="取消"
               @confirm="retry(job.job_id)"
             >
-              <a-button size="small">重试</a-button>
+              <a-button size="small" :disabled="pendingActions.has(job.job_id)">重试</a-button>
             </a-popconfirm>
           </div>
         </div>
@@ -64,13 +65,13 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { message } from 'ant-design-vue'
-import { ref, onMounted, onUnmounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watchEffect } from 'vue'
 import { api } from '../shared/api'
 import { useJobStore } from '../stores/jobs'
 import { storeToRefs } from 'pinia'
 
 const jobStore = useJobStore()
-const { selectedJobId, wsConnected, jobs: wsJobs } = storeToRefs(jobStore)
+const { selectedJobId, wsConnected, displayJobs: wsJobs, pendingActions } = storeToRefs(jobStore)
 const queryClient = useQueryClient()
 
 const {
@@ -85,7 +86,13 @@ const {
   refetchInterval: () => wsConnected.value ? 30000 : 5000
 })
 
-const data = computed(() => wsConnected.value && wsJobs.value.length > 0 ? wsJobs.value : httpData.value)
+watchEffect(() => {
+  if (!wsConnected.value && httpData.value) {
+    jobStore.setJobs(httpData.value)
+  }
+})
+
+const data = computed(() => wsJobs.value)
 
 let unsubscribe: (() => void) | null = null
 
@@ -118,12 +125,16 @@ const stopMutation = useMutation({
   mutationFn: async (params: { jobId: string; reason?: string }) => {
     await api.stopJob(params.jobId, params.reason)
   },
+  onMutate: async (params) => {
+    jobStore.applyOptimisticStop(params.jobId)
+  },
   onSuccess: async () => {
     message.success('已请求停止')
     await queryClient.invalidateQueries({ queryKey: ['jobs'] })
     await queryClient.invalidateQueries({ queryKey: ['logs'] })
   },
-  onError: (err) => {
+  onError: (err, params) => {
+    jobStore.clearOptimistic(params.jobId)
     message.error(err instanceof Error ? err.message : '停止失败')
   }
 })
@@ -139,11 +150,27 @@ const confirmStop = async () => {
 
 const retryMutation = useMutation({
   mutationFn: async (jobId: string) => api.retryJob(jobId),
-  onSuccess: async (data) => {
+  onMutate: async (jobId) => {
+    jobStore.applyOptimisticRetry(jobId)
+  },
+  onSuccess: async (data, jobId) => {
+    jobStore.clearOptimistic(jobId)
+    const originalJob = wsJobs.value.find(j => j.job_id === jobId) || httpData.value?.find(j => j.job_id === jobId)
+    if (data.job_id && originalJob) {
+      jobStore.addOptimisticJob({
+        job_id: data.job_id,
+        job_type: originalJob.job_type,
+        status: 'queued',
+        stop_requested: false,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as any)
+    }
     message.success(`已重试，新的任务：${data.job_id}`)
     await queryClient.invalidateQueries({ queryKey: ['jobs'] })
   },
-  onError: (err) => {
+  onError: (err, jobId) => {
+    jobStore.clearOptimistic(jobId)
     message.error(err instanceof Error ? err.message : '重试失败')
   }
 })
@@ -258,6 +285,10 @@ const formatTime = (iso: string) => {
 
 .job-stop {
   color: #ffb74d;
+}
+
+.job-retrying {
+  color: #64b5f6;
 }
 
 .job-status.st-running {

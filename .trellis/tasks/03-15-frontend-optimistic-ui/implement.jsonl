@@ -1,0 +1,8 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "HTTP + WS + optimistic state coordination"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "Avoid duplicating state management patterns"}
+{"file": "docs/web/zquant_最小前端架构与UI_Vue版.md", "reason": "Frontend architecture (Vue 3 + Pinia + Vue Query)"}
+{"file": "web/src/stores/jobs.ts", "reason": "Current jobs store implementation pattern"}
+{"file": "web/src/components/JobsTab.vue", "reason": "Current stop/retry mutation implementation"}
+{"file": "web/src/shared/ws/events.ts", "reason": "WS event reducer pattern for reconciliation"}

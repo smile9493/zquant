@@ -1,0 +1,50 @@
+{
+  "id": "frontend-optimistic-ui",
+  "name": "frontend-optimistic-ui",
+  "title": "Phase D: Frontend optimistic UI",
+  "description": "Add minimal optimistic UI state handling for job stop/retry flows using HTTP mutation results plus WebSocket reconciliation.",
+  "status": "completed",
+  "dev_type": "frontend",
+  "scope": "web",
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-15",
+  "completedAt": "2026-03-15",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "web/src/components/JobsTab.vue",
+    "web/src/stores/jobs.ts",
+    "web/src/components/JobsTab.spec.ts",
+    "web/src/components/JobsTab.integration.test.ts",
+    "web/vitest.config.ts"
+  ],
+  "notes": "Completed. Implemented minimal optimistic UI for stop/retry operations with base state + optimistic overlay pattern. Added watchEffect for HTTP/WS data sync, real component tests with DOM assertions. All tests pass (25/25), type check pass, build pass. REVIEW: PASS.",
+  "meta": {}
+}
