@@ -32,13 +32,20 @@ import { useJobStore } from '../stores/jobs'
 import { storeToRefs } from 'pinia'
 
 const store = useJobStore()
-const { selectedJobId } = storeToRefs(store)
+const { selectedJobId, wsConnected, logs: wsLogs } = storeToRefs(store)
 
-const { data, isLoading, error, refetch, isFetching } = useQuery({
+const { data: httpData, isLoading, error, refetch, isFetching } = useQuery({
   queryKey: computed(() => ['logs', selectedJobId.value]),
   queryFn: () => api.getJobLogs(selectedJobId.value!),
-  refetchInterval: 5000,
+  refetchInterval: () => wsConnected.value ? false : 5000,
   enabled: computed(() => !!selectedJobId.value)
+})
+
+const data = computed(() => {
+  if (wsConnected.value && selectedJobId.value && wsLogs.value.has(selectedJobId.value)) {
+    return wsLogs.value.get(selectedJobId.value)
+  }
+  return httpData.value
 })
 </script>
 

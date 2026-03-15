@@ -4,6 +4,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use tower_http::cors::CorsLayer;
 use chrono::{DateTime, Utc};
 use job_events::{
     bus::{Event, EventBus},
@@ -268,7 +269,14 @@ async fn get_datasets() -> Json<Vec<DataSet>> {
 }
 
 pub fn router(state: ApiState) -> Router {
+    let ws_state = crate::ws::WsState {
+        store: state.store.clone(),
+        bus: state.bus.clone(),
+    };
+
     Router::new()
+        .route("/ws", get(crate::ws::ws_handler))
+        .with_state(ws_state)
         .route("/system/health", get(get_health))
         .route("/jobs", post(create_job).get(list_jobs))
         .route("/jobs/:id", get(get_job))
@@ -278,6 +286,7 @@ pub fn router(state: ApiState) -> Router {
         .route("/api/datasources", get(get_datasources))
         .route("/api/datasets", get(get_datasets))
         .with_state(state)
+        .layer(CorsLayer::permissive())
 }
 
 #[cfg(test)]

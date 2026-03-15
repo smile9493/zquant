@@ -64,17 +64,17 @@
 <script setup lang="ts">
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { message } from 'ant-design-vue'
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { api } from '../shared/api'
 import { useJobStore } from '../stores/jobs'
 import { storeToRefs } from 'pinia'
 
 const jobStore = useJobStore()
-const { selectedJobId } = storeToRefs(jobStore)
+const { selectedJobId, wsConnected, jobs: wsJobs } = storeToRefs(jobStore)
 const queryClient = useQueryClient()
 
 const {
-  data,
+  data: httpData,
   isLoading,
   error,
   refetch,
@@ -82,7 +82,22 @@ const {
 } = useQuery({
   queryKey: ['jobs'],
   queryFn: api.getJobs,
-  refetchInterval: 5000
+  refetchInterval: () => wsConnected.value ? 30000 : 5000
+})
+
+const data = computed(() => wsConnected.value && wsJobs.value.length > 0 ? wsJobs.value : httpData.value)
+
+let unsubscribe: (() => void) | null = null
+
+onMounted(() => {
+  unsubscribe = jobStore.initWs()
+})
+
+onUnmounted(() => {
+  if (unsubscribe) {
+    unsubscribe()
+  }
+  jobStore.disconnectWs()
 })
 
 const selectJob = (jobId: string) => {
