@@ -3,14 +3,14 @@
   "name": "ws-bridge-jobs-logs",
   "title": "Phase D: WebSocket bridge (jobs/logs)",
   "description": "Add minimal WebSocket bridge to stream job state and logs/events to the Vue workspace; keep HTTP endpoints + polling as fallback.",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": "fullstack",
   "scope": "web",
   "priority": "P2",
   "creator": "zquant",
   "assignee": "zquant",
   "createdAt": "2026-03-15",
-  "completedAt": null,
+  "completedAt": "2026-03-15",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
@@ -33,7 +33,7 @@
       "action": "create-pr"
     }
   ],
-  "commit": null,
+  "commit": "e44c70b",
   "pr_url": null,
   "subtasks": [],
   "children": [],
@@ -51,6 +51,6 @@
     "web/src/shared/api/client.ts",
     "web/src/views/WorkspacePage.vue"
   ],
-  "notes": "Round 3 review failed. Current implementation still mishandles frontend connection lifecycle: manual disconnect triggers reconnect, and JobsTab cleanup is registered incorrectly inside onMounted, so unsubscribe/disconnect may never run. Repairs tracked in prd.md.",
+  "notes": "WebSocket bridge implementation completed. All 3 rounds of review findings fixed: backend subscribe protocol, frontend connection lifecycle (manualClose flag), and component cleanup hooks (onUnmounted moved to setup top-level). CORS configuration added. All acceptance criteria met.",
   "meta": {}
 }
