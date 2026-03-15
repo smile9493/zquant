@@ -1,0 +1,53 @@
+{
+  "id": "03-16-frontend-style-system",
+  "name": "03-16-frontend-style-system",
+  "title": "Frontend unified style management",
+  "description": "Design and stage a unified frontend style management system based on design tokens, theme layers, and shared UI primitives for the Vue workspace.",
+  "status": "planning",
+  "dev_type": "frontend",
+  "scope": "web",
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-16",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "web/src/components/TopBar.vue",
+    "web/src/components/JobsTab.vue",
+    "web/src/components/LogsTab.vue",
+    "web/src/components/LeftSidebar.vue",
+    "web/src/components/DataExplorerPanel.vue",
+    "web/src/App.vue",
+    "web/src/main.ts",
+    "web/src/styles"
+  ],
+  "notes": "Planning task for a unified style system. Scope is design tokens, theme layering, shared panel/list/status primitives, and migration sequencing for existing frontend surfaces.",
+  "meta": {}
+}
