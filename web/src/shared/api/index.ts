@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { JobSummary, LogEntry, PriceBar, DataSource, DataSet } from './types'
+import type { JobSummary, LogEntry, PriceBar, DataSource, DataSet, AgentSession } from './types'
 
 export const api = {
   async getJobs(): Promise<JobSummary[]> {
@@ -41,5 +41,17 @@ export const api = {
   async getDataSets(): Promise<DataSet[]> {
     const { data } = await apiClient.get('/api/datasets')
     return data
+  },
+
+  async getAgentSession(): Promise<AgentSession | null> {
+    try {
+      const { data } = await apiClient.get('/api/agent/session')
+      return data
+    } catch (error: any) {
+      if (error.response?.status === 404) {
+        return null
+      }
+      throw error
+    }
   }
 }

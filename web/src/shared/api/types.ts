@@ -34,3 +34,17 @@ export interface DataSet {
   name: string
   source_id: string
 }
+
+export type AgentStatus = 'idle' | 'running' | 'success' | 'error'
+
+export interface AgentSession {
+  session_id: string
+  status: AgentStatus
+  symbol?: string
+  timeframe?: string
+  dataset_id?: string
+  job_id?: string
+  last_output?: string
+  last_updated: string
+  error_message?: string
+}

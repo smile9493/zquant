@@ -123,4 +123,6 @@
   --zq-width-sidebar: 48px;
   --zq-width-dock: 320px;
   --zq-height-bottom-dock: 200px;
+  --zq-width-symbol-input: 100px;
+  --zq-height-data-list-max: 120px;
 }

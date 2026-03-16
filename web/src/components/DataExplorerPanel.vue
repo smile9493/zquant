@@ -155,7 +155,7 @@ const selectDataSet = (id: string) => {
 }
 
 .data-list {
-  max-height: 120px;
+  max-height: var(--zq-height-data-list-max);
   overflow-y: auto;
 }
 

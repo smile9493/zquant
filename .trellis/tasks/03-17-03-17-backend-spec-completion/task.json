@@ -1,0 +1,48 @@
+{
+  "id": "03-17-backend-spec-completion",
+  "name": "03-17-backend-spec-completion",
+  "title": "Backend spec completion",
+  "description": "Complete missing backend spec items according to repository spec-writing guidelines.",
+  "status": "completed",
+  "dev_type": "backend",
+  "scope": "docs",
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-17",
+  "completedAt": "2026-03-17",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 2,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    ".trellis/spec/backend/index.md",
+    ".trellis/spec/backend/type-safety.md",
+    ".trellis/spec/backend/rust-coding-guidelines.md"
+  ],
+  "notes": "Completed. Backend spec completion done: added type-safety guideline and updated backend index with Filled statuses and contract spec entries. Review gate passed.",
+  "meta": {}
+}

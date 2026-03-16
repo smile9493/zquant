@@ -1,0 +1,50 @@
+{
+  "id": "03-16-frontend-agent-panel",
+  "name": "03-16-frontend-agent-panel",
+  "title": "Frontend Agent Panel",
+  "description": "Add a minimal Agent Panel to the Vue workspace for displaying agent tasks, output, and execution context without expanding to multi-panel collaboration.",
+  "status": "completed",
+  "dev_type": "frontend",
+  "scope": "web",
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-16",
+  "completedAt": "2026-03-16",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "web/src/pages",
+    "web/src/components",
+    "web/src/stores",
+    "web/src/shared/api",
+    "web/src/styles"
+  ],
+  "notes": "Review failed. Code and error handling are improved, but the PRD still leaves acceptance criteria unchecked while claiming REVIEW: PASS. Verification records also do not clearly reconcile build vs. test expectations, so task documentation is not yet in a consistent final state.",
+  "meta": {}
+}

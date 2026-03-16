@@ -185,7 +185,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 }
 
 .symbol-input {
-  width: 100px;
+  width: var(--zq-width-symbol-input);
   padding: var(--zq-space-1) var(--zq-space-2);
   background: var(--zq-bg-input);
   border: var(--zq-border-width-1) solid var(--zq-border-subtle);
@@ -250,7 +250,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 }
 
 .health-indicator {
-  padding: 2px var(--zq-space-2);
+  padding: var(--zq-space-05) var(--zq-space-2);
   border-radius: var(--zq-radius-sm);
   font-size: var(--zq-font-size-xs);
   text-transform: uppercase;
@@ -278,7 +278,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 }
 
 .panel-btn {
-  padding: 6px var(--zq-space-3);
+  padding: var(--zq-space-15) var(--zq-space-3);
   background: var(--zq-bg-input);
   border: var(--zq-border-width-1) solid var(--zq-border-subtle);
   border-radius: var(--zq-radius-md);

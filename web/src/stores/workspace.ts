@@ -5,7 +5,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
   const mode = ref<'research'>('research')
   const symbol = ref('AAPL')
   const timeframe = ref('1D')
-  const rightPanel = ref('data-explorer')
+  const rightPanel = ref<'data-explorer' | 'governance-summary' | 'agent'>('data-explorer')
   const bottomPanel = ref('jobs')
 
   return {
