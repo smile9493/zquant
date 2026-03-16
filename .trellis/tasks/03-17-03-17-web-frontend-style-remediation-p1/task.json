@@ -1,0 +1,57 @@
+{
+  "id": "03-17-web-frontend-style-remediation-p1",
+  "name": "03-17-web-frontend-style-remediation-p1",
+  "title": "Web frontend style remediation phase 1",
+  "description": "Phase-1 remediation plan to align existing web frontend UI with unified style system and Impeccable review gate.",
+  "status": "planning",
+  "dev_type": "frontend",
+  "scope": "ui",
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-17",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    ".trellis/spec/frontend/index.md",
+    ".trellis/spec/frontend/quality-guidelines.md",
+    ".trellis/spec/frontend/impeccable-guidelines.md",
+    "web/src/views/WorkspacePage.vue",
+    "web/src/components/LogsTab.vue",
+    "web/src/components/AgentPanel.vue",
+    "web/src/components/DataExplorerPanel.vue",
+    "web/src/components/GovernanceSummaryPanel.vue",
+    "web/src/components/PriceChartPanel.vue",
+    "web/src/styles/components.css",
+    "web/src/styles/theme-dark.css",
+    "web/src/styles/tokens.css"
+  ],
+  "notes": "Planning only. Focus on style consistency, tokenization, component primitives, and Impeccable-gated review evidence.",
+  "meta": {}
+}

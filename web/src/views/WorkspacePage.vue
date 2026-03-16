@@ -40,6 +40,12 @@
         >
           治理
         </button>
+        <button
+          :class="['panel-btn', { active: rightPanel === 'agent' }]"
+          @click="store.rightPanel = 'agent'"
+        >
+          Agent
+        </button>
       </div>
     </div>
     <div class="workspace-content">
@@ -57,6 +63,9 @@
         </div>
         <div v-if="rightPanel === 'governance-summary'" class="panel">
           <GovernanceSummaryPanel />
+        </div>
+        <div v-if="rightPanel === 'agent'" class="panel">
+          <AgentPanel />
         </div>
       </div>
     </div>
@@ -84,6 +93,7 @@ import { api } from '../shared/api'
 import PriceChartPanel from '../components/PriceChartPanel.vue'
 import DataExplorerPanel from '../components/DataExplorerPanel.vue'
 import GovernanceSummaryPanel from '../components/GovernanceSummaryPanel.vue'
+import AgentPanel from '../components/AgentPanel.vue'
 import JobsTab from '../components/JobsTab.vue'
 import LogsTab from '../components/LogsTab.vue'
 import LeftSidebar from '../components/LeftSidebar.vue'
@@ -121,7 +131,12 @@ const handleRefresh = async () => {
 onMounted(() => {
   if (route.query.symbol) store.symbol = route.query.symbol as string
   if (route.query.timeframe) store.timeframe = route.query.timeframe as string
-  if (route.query.right) store.rightPanel = route.query.right as string
+  if (route.query.right) {
+    const panel = route.query.right as string
+    if (panel === 'data-explorer' || panel === 'governance-summary' || panel === 'agent') {
+      store.rightPanel = panel
+    }
+  }
   if (route.query.bottom) activeTab.value = route.query.bottom as string
 })
 
@@ -143,80 +158,80 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: #0a0a0a;
-  color: #e0e0e0;
+  background: var(--zq-bg-page);
+  color: var(--zq-text-primary);
 }
 
 .top-bar {
-  height: 48px;
-  background: rgba(20, 20, 20, 0.8);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  height: var(--zq-height-topbar);
+  background: var(--zq-bg-surface);
+  border-bottom: 1px solid var(--zq-border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 var(--zq-space-4);
 }
 
 .top-bar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--zq-space-3);
 }
 
 .top-bar-center {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--zq-space-2);
 }
 
 .symbol-input {
   width: 100px;
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: #e0e0e0;
-  font-size: 13px;
+  padding: var(--zq-space-1) var(--zq-space-2);
+  background: var(--zq-bg-input);
+  border: 1px solid var(--zq-border-subtle);
+  border-radius: var(--zq-radius-md);
+  color: var(--zq-text-primary);
+  font-size: var(--zq-font-size-md);
 }
 
 .symbol-input:focus {
   outline: none;
-  border-color: #26a69a;
+  border-color: var(--zq-color-primary);
 }
 
 .timeframe-select {
-  padding: 4px 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: #e0e0e0;
-  font-size: 13px;
+  padding: var(--zq-space-1) var(--zq-space-2);
+  background: var(--zq-bg-input);
+  border: 1px solid var(--zq-border-subtle);
+  border-radius: var(--zq-radius-md);
+  color: var(--zq-text-primary);
+  font-size: var(--zq-font-size-md);
   cursor: pointer;
 }
 
 .timeframe-select:focus {
   outline: none;
-  border-color: #26a69a;
+  border-color: var(--zq-color-primary);
 }
 
 .refresh-btn {
-  padding: 4px 12px;
-  background: rgba(38, 166, 154, 0.15);
-  border: 1px solid rgba(38, 166, 154, 0.4);
-  border-radius: 4px;
-  color: #26a69a;
-  font-size: 13px;
+  padding: var(--zq-space-1) var(--zq-space-3);
+  background: var(--zq-primary-alpha-15);
+  border: 1px solid var(--zq-primary-alpha-40);
+  border-radius: var(--zq-radius-md);
+  color: var(--zq-color-primary);
+  font-size: var(--zq-font-size-md);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--zq-transition-base);
 }
 
 .refresh-btn:hover:not(:disabled) {
-  background: rgba(38, 166, 154, 0.25);
-  border-color: #26a69a;
+  background: var(--zq-primary-alpha-25);
+  border-color: var(--zq-color-primary);
 }
 
 .refresh-btn:disabled {
-  opacity: 0.5;
+  opacity: var(--zq-opacity-disabled);
   cursor: not-allowed;
 }
 
@@ -225,63 +240,63 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 }
 
 .mode-badge {
-  padding: 2px 8px;
-  background: rgba(38, 166, 154, 0.15);
-  border: 1px solid rgba(38, 166, 154, 0.4);
-  border-radius: 3px;
-  color: #26a69a;
-  font-size: 11px;
+  padding: 2px var(--zq-space-2);
+  background: var(--zq-primary-alpha-15);
+  border: 1px solid var(--zq-primary-alpha-40);
+  border-radius: var(--zq-radius-sm);
+  color: var(--zq-color-primary);
+  font-size: var(--zq-font-size-xs);
   text-transform: uppercase;
 }
 
 .health-indicator {
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 11px;
+  padding: 2px var(--zq-space-2);
+  border-radius: var(--zq-radius-sm);
+  font-size: var(--zq-font-size-xs);
   text-transform: uppercase;
   font-weight: 600;
 }
 
 .health-indicator.healthy {
-  background: rgba(56, 142, 60, 0.2);
-  color: #66bb6a;
+  background: var(--zq-success-alpha-20);
+  color: var(--zq-text-success);
 }
 
 .health-indicator.degraded {
-  background: rgba(245, 124, 0, 0.2);
-  color: #ffa726;
+  background: var(--zq-warning-alpha-20);
+  color: var(--zq-text-warning);
 }
 
 .health-indicator.unhealthy {
-  background: rgba(211, 47, 47, 0.2);
-  color: #ef5350;
+  background: var(--zq-error-alpha-20);
+  color: var(--zq-text-error);
 }
 
 .top-bar-controls {
   display: flex;
-  gap: 8px;
+  gap: var(--zq-space-2);
 }
 
 .panel-btn {
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: #b0b0b0;
-  font-size: 13px;
+  padding: 6px var(--zq-space-3);
+  background: var(--zq-bg-input);
+  border: 1px solid var(--zq-border-subtle);
+  border-radius: var(--zq-radius-md);
+  color: var(--zq-text-secondary);
+  font-size: var(--zq-font-size-md);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--zq-transition-base);
 }
 
 .panel-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: var(--zq-bg-input-hover);
+  border-color: var(--zq-border-emphasis);
 }
 
 .panel-btn.active {
-  background: rgba(38, 166, 154, 0.2);
-  border-color: #26a69a;
-  color: #26a69a;
+  background: var(--zq-primary-alpha-20);
+  border-color: var(--zq-color-primary);
+  color: var(--zq-color-primary);
 }
 
 .workspace-content {
@@ -291,9 +306,9 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 }
 
 .left-sidebar {
-  width: 48px;
-  background: rgba(15, 15, 15, 0.9);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  width: var(--zq-width-sidebar);
+  background: var(--zq-bg-surface-elevated);
+  border-right: 1px solid var(--zq-border-subtle);
 }
 
 .center-area {
@@ -304,21 +319,21 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 
 .chart-panel {
   flex: 1;
-  background: rgba(10, 10, 10, 0.95);
+  background: var(--zq-bg-surface-alt);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .placeholder {
-  color: #666;
-  font-size: 18px;
+  color: var(--zq-text-tertiary);
+  font-size: var(--zq-font-size-xl);
 }
 
 .right-dock {
-  width: 320px;
-  background: rgba(15, 15, 15, 0.9);
-  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  width: var(--zq-width-dock);
+  background: var(--zq-bg-surface-elevated);
+  border-left: 1px solid var(--zq-border-subtle);
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -326,14 +341,14 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 
 .panel {
   flex: 1;
-  background: rgba(20, 20, 20, 0.8);
-  padding: 16px;
+  background: var(--zq-bg-surface);
+  padding: var(--zq-space-4);
 }
 
 .bottom-dock {
-  height: 200px;
-  margin-left: 48px;
-  background: rgba(15, 15, 15, 0.9);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  height: var(--zq-height-bottom-dock);
+  margin-left: var(--zq-width-sidebar);
+  background: var(--zq-bg-surface-elevated);
+  border-top: 1px solid var(--zq-border-subtle);
 }
 </style>

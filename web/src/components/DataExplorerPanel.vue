@@ -115,43 +115,43 @@ const selectDataSet = (id: string) => {
 }
 
 .panel-header {
-  padding: 12px 16px;
+  padding: var(--zq-space-3) var(--zq-space-4);
   font-weight: 600;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--zq-border-subtle);
 }
 
 .panel-content {
   flex: 1;
-  padding: 16px;
+  padding: var(--zq-space-4);
   overflow-y: auto;
 }
 
 .control-group {
-  margin-bottom: 16px;
+  margin-bottom: var(--zq-space-4);
 }
 
 .control-group label {
   display: block;
-  margin-bottom: 8px;
-  color: #b0b0b0;
-  font-size: 14px;
+  margin-bottom: var(--zq-space-2);
+  color: var(--zq-text-secondary);
+  font-size: var(--zq-font-size-base);
 }
 
 .symbol-input,
 .timeframe-select {
   width: 100%;
-  padding: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  color: #e0e0e0;
-  font-size: 14px;
+  padding: var(--zq-space-2);
+  background: var(--zq-bg-input);
+  border: 1px solid var(--zq-border-subtle);
+  border-radius: var(--zq-radius-md);
+  color: var(--zq-text-primary);
+  font-size: var(--zq-font-size-base);
 }
 
 .symbol-input:focus,
 .timeframe-select:focus {
   outline: none;
-  border-color: rgba(255, 255, 255, 0.3);
+  border-color: var(--zq-border-emphasis);
 }
 
 .data-list {
@@ -160,42 +160,42 @@ const selectDataSet = (id: string) => {
 }
 
 .data-item {
-  padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.03);
-  border-radius: 3px;
-  margin-bottom: 4px;
-  font-size: 13px;
-  color: #d0d0d0;
+  padding: 6px var(--zq-space-2);
+  background: var(--zq-bg-item);
+  border-radius: var(--zq-radius-sm);
+  margin-bottom: var(--zq-space-1);
+  font-size: var(--zq-font-size-md);
+  color: var(--zq-text-primary);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--zq-transition-base);
 }
 
 .data-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--zq-bg-input-hover);
 }
 
 .data-item.selected {
-  background: rgba(38, 166, 154, 0.2);
-  border: 1px solid rgba(38, 166, 154, 0.4);
-  color: #26a69a;
+  background: var(--zq-primary-alpha-20);
+  border: 1px solid var(--zq-primary-alpha-40);
+  color: var(--zq-color-primary);
 }
 
 .data-empty,
 .data-loading,
 .data-error {
-  padding: 8px;
-  font-size: 13px;
+  padding: var(--zq-space-2);
+  font-size: var(--zq-font-size-md);
 }
 
 .data-empty {
-  color: #666;
+  color: var(--zq-text-tertiary);
 }
 
 .data-loading {
-  color: #9e9e9e;
+  color: var(--zq-color-gray-500);
 }
 
 .data-error {
-  color: #ef5350;
+  color: var(--zq-text-error);
 }
 </style>

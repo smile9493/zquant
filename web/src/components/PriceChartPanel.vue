@@ -25,25 +25,32 @@ const { data: klineData } = useQuery({
 onMounted(() => {
   if (!chartContainer.value) return
 
+  // Read colors from CSS variables
+  const styles = getComputedStyle(document.documentElement)
+  const textColor = styles.getPropertyValue('--zq-text-primary').trim()
+  const gridColor = styles.getPropertyValue('--zq-border-subtle').trim()
+  const upColor = styles.getPropertyValue('--zq-color-primary').trim()
+  const downColor = styles.getPropertyValue('--zq-color-danger').trim()
+
   chart = createChart(chartContainer.value, {
     layout: {
       background: { color: 'transparent' },
-      textColor: '#d1d4dc',
+      textColor,
     },
     grid: {
-      vertLines: { color: 'rgba(255, 255, 255, 0.05)' },
-      horzLines: { color: 'rgba(255, 255, 255, 0.05)' },
+      vertLines: { color: gridColor },
+      horzLines: { color: gridColor },
     },
     width: chartContainer.value.clientWidth,
     height: chartContainer.value.clientHeight,
   })
 
   candlestickSeries = chart.addSeries(CandlestickSeries, {
-    upColor: '#26a69a',
-    downColor: '#ef5350',
+    upColor,
+    downColor,
     borderVisible: false,
-    wickUpColor: '#26a69a',
-    wickDownColor: '#ef5350',
+    wickUpColor: upColor,
+    wickDownColor: downColor,
   })
 
   const handleResize = () => {

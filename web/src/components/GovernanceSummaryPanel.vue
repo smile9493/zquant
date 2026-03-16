@@ -34,50 +34,50 @@ const { data, isLoading, error } = useQuery({
 }
 
 .panel-header {
-  padding: 12px 16px;
+  padding: var(--zq-space-3) var(--zq-space-4);
   font-weight: 600;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--zq-border-subtle);
 }
 
 .panel-content {
   flex: 1;
-  padding: 16px;
+  padding: var(--zq-space-4);
   overflow-y: auto;
 }
 
 .status-item {
-  padding: 8px 0;
-  color: #b0b0b0;
+  padding: var(--zq-space-2) 0;
+  color: var(--zq-text-secondary);
 }
 
 .status-item.error {
-  color: #ef5350;
+  color: var(--zq-text-error);
 }
 
 .error-text {
-  color: #ff6b6b;
-  font-size: 12px;
+  color: var(--zq-text-error);
+  font-size: var(--zq-font-size-sm);
 }
 
 .status-badge {
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 12px;
+  padding: 2px var(--zq-space-2);
+  border-radius: var(--zq-radius-sm);
+  font-size: var(--zq-font-size-sm);
   font-weight: 600;
 }
 
 .status-badge.healthy {
-  background: #388e3c;
-  color: #fff;
+  background: var(--zq-color-success);
+  color: var(--zq-color-white);
 }
 
 .status-badge.degraded {
-  background: #f57c00;
-  color: #fff;
+  background: var(--zq-color-warning-dark);
+  color: var(--zq-color-white);
 }
 
 .status-badge.unhealthy {
-  background: #d32f2f;
-  color: #fff;
+  background: var(--zq-color-error);
+  color: var(--zq-color-white);
 }
 </style>

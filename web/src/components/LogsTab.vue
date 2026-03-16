@@ -51,7 +51,7 @@ const data = computed(() => {
 
 <style scoped>
 .logs-tab {
-  padding: 16px;
+  padding: var(--zq-space-4);
   height: 100%;
   overflow-y: auto;
 }
@@ -60,71 +60,71 @@ const data = computed(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: var(--zq-space-3);
+  margin-bottom: var(--zq-space-3);
 }
 
 .title {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--zq-space-3);
   min-width: 0;
 }
 
 .label {
-  color: #e0e0e0;
+  color: var(--zq-text-primary);
   font-weight: 600;
 }
 
 .job {
-  font-size: 12px;
-  color: #b0b0b0;
+  font-size: var(--zq-font-size-sm);
+  color: var(--zq-text-secondary);
   font-family: monospace;
   word-break: break-all;
 }
 
 .job.empty {
   font-family: inherit;
-  color: #757575;
+  color: var(--zq-color-gray-600);
 }
 
 .status {
-  padding: 8px;
-  color: #b0b0b0;
+  padding: var(--zq-space-2);
+  color: var(--zq-text-secondary);
 }
 
 .status.error {
-  color: #ef5350;
+  color: var(--zq-text-error);
 }
 
 .log-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--zq-space-1);
 }
 
 .log-item {
-  padding: 6px 8px;
+  padding: 6px var(--zq-space-2);
   font-family: monospace;
-  font-size: 13px;
+  font-size: var(--zq-font-size-md);
   display: flex;
-  gap: 12px;
+  gap: var(--zq-space-3);
 }
 
 .log-item.info {
-  color: #90caf9;
+  color: var(--zq-text-info);
 }
 
 .log-item.warn {
-  color: #ffb74d;
+  color: var(--zq-text-warning);
 }
 
 .log-item.error {
-  color: #ef5350;
+  color: var(--zq-text-error);
 }
 
 .log-time {
-  color: #757575;
+  color: var(--zq-color-gray-600);
   flex-shrink: 0;
 }
 
