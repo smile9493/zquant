@@ -3,18 +3,18 @@
   "name": "03-16-frontend-style-system",
   "title": "Frontend unified style management",
   "description": "Design and stage a unified frontend style management system based on design tokens, theme layers, and shared UI primitives for the Vue workspace.",
-  "status": "planning",
+  "status": "completed",
   "dev_type": "frontend",
   "scope": "web",
   "priority": "P2",
   "creator": "zquant",
   "assignee": "zquant",
   "createdAt": "2026-03-16",
-  "completedAt": null,
+  "completedAt": "2026-03-16",
   "branch": null,
   "base_branch": "main",
   "worktree_path": null,
-  "current_phase": 0,
+  "current_phase": 2,
   "next_action": [
     {
       "phase": 1,
@@ -39,15 +39,17 @@
   "children": [],
   "parent": null,
   "relatedFiles": [
-    "web/src/components/TopBar.vue",
+    "web/src/styles/tokens.css",
+    "web/src/styles/theme-dark.css",
+    "web/src/styles/components.css",
+    "web/src/styles/utilities.css",
+    "web/src/styles/index.css",
+    "web/src/styles/antd-theme.ts",
     "web/src/components/JobsTab.vue",
-    "web/src/components/LogsTab.vue",
     "web/src/components/LeftSidebar.vue",
-    "web/src/components/DataExplorerPanel.vue",
     "web/src/App.vue",
-    "web/src/main.ts",
-    "web/src/styles"
+    "web/src/main.ts"
   ],
-  "notes": "Planning task for a unified style system. Scope is design tokens, theme layering, shared panel/list/status primitives, and migration sequencing for existing frontend surfaces.",
+  "notes": "Completed. Implemented unified style management system with three layers (tokens/theme/components). Created design tokens, dark theme, shared UI primitives. Migrated JobsTab and LeftSidebar. Added Ant Design Vue bridge (antd-theme.ts + ConfigProvider). Known limitation: antd bridge uses manual alignment, not single token source. Build pass. REVIEW: PASS (with known limitations).",
   "meta": {}
 }

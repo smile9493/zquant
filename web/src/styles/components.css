@@ -1,0 +1,92 @@
+/* Shared Component Styles */
+
+/* Panel */
+.zq-panel {
+  background: var(--zq-bg-panel);
+  border-radius: var(--zq-radius-md);
+  border: 1px solid transparent;
+  padding: var(--zq-space-3);
+}
+
+/* Toolbar */
+.zq-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--zq-space-3);
+  margin-bottom: var(--zq-space-3);
+}
+
+/* List Item */
+.zq-list-item {
+  padding: var(--zq-space-3);
+  background: var(--zq-bg-panel);
+  border-radius: var(--zq-radius-md);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--zq-transition-base);
+}
+
+.zq-list-item:hover {
+  border-color: var(--zq-border-hover);
+}
+
+.zq-list-item.selected {
+  border-color: var(--zq-border-selected);
+  background: var(--zq-bg-selected);
+}
+
+/* Status Badge */
+.zq-status-badge {
+  padding: 2px var(--zq-space-2);
+  border-radius: var(--zq-radius-sm);
+  font-size: var(--zq-font-size-sm);
+  color: var(--zq-color-white);
+  text-transform: uppercase;
+}
+
+.zq-status-badge.running {
+  background: var(--zq-color-status-running);
+}
+
+.zq-status-badge.done {
+  background: var(--zq-color-status-done);
+}
+
+.zq-status-badge.error {
+  background: var(--zq-color-status-error);
+}
+
+.zq-status-badge.queued {
+  background: var(--zq-color-status-queued);
+}
+
+.zq-status-badge.stopped {
+  background: var(--zq-color-status-stopped);
+}
+
+.zq-status-badge.reaped {
+  background: var(--zq-color-status-reaped);
+}
+
+/* Action Group */
+.zq-action-group {
+  display: flex;
+  gap: var(--zq-space-2);
+}
+
+/* Empty State */
+.zq-empty-state {
+  padding: var(--zq-space-2);
+  color: var(--zq-text-disabled);
+  font-size: var(--zq-font-size-xs);
+}
+
+/* Status Text */
+.zq-status-text {
+  padding: var(--zq-space-2);
+  color: var(--zq-text-secondary);
+}
+
+.zq-status-text.error {
+  color: var(--zq-color-danger);
+}

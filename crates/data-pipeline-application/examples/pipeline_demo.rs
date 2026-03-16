@@ -7,7 +7,6 @@ use data_pipeline_domain::{Capability, DatasetRequest, IngestRequest, Market};
 use job_domain::{JobContext, JobHandler};
 use job_events::bus::{Event, EventBus, InMemoryEventBus};
 use std::sync::Arc;
-use tracing_subscriber;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -1,0 +1,31 @@
+/* Utility Classes */
+
+/* Text */
+.zq-text-primary {
+  color: var(--zq-text-primary);
+}
+
+.zq-text-secondary {
+  color: var(--zq-text-secondary);
+}
+
+.zq-text-muted {
+  color: var(--zq-text-muted);
+}
+
+.zq-text-xs {
+  font-size: var(--zq-font-size-xs);
+}
+
+.zq-text-sm {
+  font-size: var(--zq-font-size-sm);
+}
+
+/* Spacing */
+.zq-gap-2 {
+  gap: var(--zq-space-2);
+}
+
+.zq-gap-3 {
+  gap: var(--zq-space-3);
+}

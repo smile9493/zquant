@@ -13,7 +13,7 @@
     </div>
     <div class="sidebar-section">
       <div class="section-title">收藏</div>
-      <div v-if="favorites.length === 0" class="sidebar-empty">无收藏</div>
+      <div v-if="favorites.length === 0" class="zq-empty-state">无收藏</div>
       <div
         v-for="symbol in favorites"
         :key="symbol"
@@ -69,56 +69,56 @@ const removeFav = (symbol: string) => {
 .left-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 12px 8px;
+  gap: var(--zq-space-4);
+  padding: var(--zq-space-3) var(--zq-space-2);
   overflow-y: auto;
 }
 
 .sidebar-section {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--zq-space-1);
 }
 
 .section-title {
-  font-size: 11px;
-  color: #757575;
+  font-size: var(--zq-font-size-xs);
+  color: var(--zq-text-label);
   text-transform: uppercase;
-  margin-bottom: 4px;
-  padding: 0 4px;
+  margin-bottom: var(--zq-space-1);
+  padding: 0 var(--zq-space-1);
 }
 
 .sidebar-item {
-  padding: 6px 8px;
-  font-size: 12px;
-  color: #b0b0b0;
+  padding: var(--zq-space-1) var(--zq-space-2);
+  font-size: var(--zq-font-size-sm);
+  color: var(--zq-text-secondary);
   cursor: pointer;
-  border-radius: 3px;
-  transition: all 0.2s;
+  border-radius: var(--zq-radius-sm);
+  transition: all var(--zq-transition-base);
   flex: 1;
 }
 
 .sidebar-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e0e0e0;
+  background: var(--zq-bg-panel-hover);
+  color: var(--zq-text-primary);
 }
 
 .sidebar-item-row {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--zq-space-1);
 }
 
 .remove-btn {
-  padding: 2px 6px;
-  background: rgba(239, 83, 80, 0.2);
+  padding: var(--zq-space-1) var(--zq-space-1);
+  background: var(--zq-interactive-danger-bg);
   border: none;
-  border-radius: 3px;
-  color: #ef5350;
-  font-size: 14px;
+  border-radius: var(--zq-radius-sm);
+  color: var(--zq-interactive-danger);
+  font-size: var(--zq-font-size-base);
   cursor: pointer;
-  opacity: 0.6;
-  transition: opacity 0.2s;
+  opacity: var(--zq-opacity-disabled);
+  transition: opacity var(--zq-transition-base);
 }
 
 .remove-btn:hover {
@@ -127,43 +127,37 @@ const removeFav = (symbol: string) => {
 
 .add-favorite {
   display: flex;
-  gap: 4px;
-  margin-top: 4px;
+  gap: var(--zq-space-1);
+  margin-top: var(--zq-space-1);
 }
 
 .add-input {
   flex: 1;
-  padding: 4px 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  color: #e0e0e0;
-  font-size: 11px;
+  padding: var(--zq-space-1) var(--zq-space-1);
+  background: var(--zq-bg-input);
+  border: 1px solid var(--zq-border-input);
+  border-radius: var(--zq-radius-sm);
+  color: var(--zq-text-primary);
+  font-size: var(--zq-font-size-xs);
 }
 
 .add-input:focus {
   outline: none;
-  border-color: #26a69a;
+  border-color: var(--zq-border-input-focus);
 }
 
 .add-btn {
-  padding: 4px 8px;
-  background: rgba(38, 166, 154, 0.2);
-  border: 1px solid rgba(38, 166, 154, 0.4);
-  border-radius: 3px;
-  color: #26a69a;
-  font-size: 14px;
+  padding: var(--zq-space-1) var(--zq-space-2);
+  background: var(--zq-interactive-primary-bg);
+  border: 1px solid var(--zq-interactive-primary-border);
+  border-radius: var(--zq-radius-sm);
+  color: var(--zq-interactive-primary);
+  font-size: var(--zq-font-size-base);
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all var(--zq-transition-base);
 }
 
 .add-btn:hover {
-  background: rgba(38, 166, 154, 0.3);
-}
-
-.sidebar-empty {
-  padding: 6px 8px;
-  font-size: 11px;
-  color: #666;
+  background: var(--zq-interactive-primary-bg-hover);
 }
 </style>

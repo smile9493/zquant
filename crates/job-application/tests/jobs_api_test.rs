@@ -159,7 +159,7 @@ async fn test_retry_job_success() {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(&format!("/jobs/{}/retry", original_job_id))
+                .uri(format!("/jobs/{}/retry", original_job_id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -181,7 +181,7 @@ async fn test_retry_job_success() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri(&format!("/jobs/{}", new_job_id))
+                .uri(format!("/jobs/{}", new_job_id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -282,7 +282,7 @@ async fn test_get_job_logs_empty() {
     let response = app
         .oneshot(
             Request::builder()
-                .uri(&format!("/jobs/{}/logs", job_id))
+                .uri(format!("/jobs/{}/logs", job_id))
                 .body(Body::empty())
                 .unwrap(),
         )

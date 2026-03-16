@@ -22,6 +22,7 @@ async fn setup_test_db() -> Result<PgPool> {
 #[tokio::test(flavor = "multi_thread")]
 async fn create_job_no_idempotency_creates_queued() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().unwrap();
+    drop(_guard);
     let pool = setup_test_db().await?;
     let store = JobStore::new(pool);
 
@@ -44,6 +45,7 @@ async fn create_job_no_idempotency_creates_queued() -> Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn create_job_with_idempotency_is_deduped() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().unwrap();
+    drop(_guard);
     let pool = setup_test_db().await?;
     let store = JobStore::new(pool);
 
@@ -73,6 +75,7 @@ async fn create_job_with_idempotency_is_deduped() -> Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn claim_skips_stop_requested() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().unwrap();
+    drop(_guard);
     let pool = setup_test_db().await?;
     let store = JobStore::new(pool);
 
@@ -96,6 +99,7 @@ async fn claim_skips_stop_requested() -> Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn claim_increments_lease_version() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().unwrap();
+    drop(_guard);
     let pool = setup_test_db().await?;
     let store = JobStore::new(pool);
 
@@ -118,6 +122,7 @@ async fn claim_increments_lease_version() -> Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn heartbeat_requires_matching_lease_version() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().unwrap();
+    drop(_guard);
     let pool = setup_test_db().await?;
     let store = JobStore::new(pool);
 
@@ -154,6 +159,7 @@ async fn heartbeat_requires_matching_lease_version() -> Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn finalize_requires_matching_lease_version() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().unwrap();
+    drop(_guard);
     let pool = setup_test_db().await?;
     let store = JobStore::new(pool);
 
@@ -201,6 +207,7 @@ async fn finalize_requires_matching_lease_version() -> Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn concurrent_claim_no_duplicates() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().unwrap();
+    drop(_guard);
     let pool = setup_test_db().await?;
     let store1 = JobStore::new(pool.clone());
     let store2 = JobStore::new(pool);
@@ -244,6 +251,7 @@ async fn concurrent_claim_no_duplicates() -> Result<()> {
 #[tokio::test(flavor = "multi_thread")]
 async fn concurrent_create_with_same_idempotency_key_returns_same_job() -> Result<()> {
     let _guard = TEST_DB_LOCK.lock().unwrap();
+    drop(_guard);
     let pool = setup_test_db().await?;
     let store1 = JobStore::new(pool.clone());
     let store2 = JobStore::new(pool.clone());

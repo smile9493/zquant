@@ -1,0 +1,5 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend development guide"}
+{"file": ".trellis/spec/guides/code-reuse-thinking-guide.md", "reason": "代码复用指南 - 识别重复模式"}
+{"file": "web/src/components/JobsTab.vue", "reason": "现有样式模式参考 - 硬编码示例"}
+{"file": "web/src/components/LeftSidebar.vue", "reason": "现有样式模式参考 - 主题色重复"}

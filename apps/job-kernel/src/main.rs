@@ -6,7 +6,6 @@ use job_store_pg::JobStore;
 use sqlx::PgPool;
 use std::sync::Arc;
 use tokio::signal;
-use tracing_subscriber;
 
 struct TestHandler;
 

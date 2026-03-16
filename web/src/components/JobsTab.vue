@@ -1,18 +1,18 @@
 <template>
   <div class="jobs-tab">
-    <div class="toolbar">
+    <div class="zq-toolbar">
       <a-button size="small" @click="refetch" :loading="isFetching">刷新</a-button>
       <span v-if="selectedJobId" class="selected">已选中：{{ selectedJobId }}</span>
     </div>
 
-    <div v-if="isLoading" class="status">加载中...</div>
-    <div v-else-if="error" class="status error">加载任务失败</div>
-    <div v-else-if="!data?.length" class="status">暂无任务</div>
+    <div v-if="isLoading" class="zq-status-text">加载中...</div>
+    <div v-else-if="error" class="zq-status-text error">加载任务失败</div>
+    <div v-else-if="!data?.length" class="zq-status-text">暂无任务</div>
     <div v-else class="job-list">
       <div
         v-for="job in data"
         :key="job.job_id"
-        :class="['job-item', { selected: job.job_id === selectedJobId }]"
+        :class="['zq-list-item', 'job-item', { selected: job.job_id === selectedJobId }]"
         @click="selectJob(job.job_id)"
       >
         <div class="job-main">
@@ -26,8 +26,8 @@
         </div>
 
         <div class="job-right">
-          <span :class="['job-status', `st-${String(job.status)}`]">{{ job.status }}</span>
-          <div class="actions" @click.stop>
+          <span :class="['zq-status-badge', String(job.status)]">{{ job.status }}</span>
+          <div class="zq-action-group" @click.stop>
             <a-button size="small" danger @click="openStop(job.job_id)" :disabled="pendingActions.has(job.job_id)">停止</a-button>
             <a-popconfirm
               title="确认重试该任务？"
@@ -188,141 +188,74 @@ const formatTime = (iso: string) => {
 
 <style scoped>
 .jobs-tab {
-  padding: 16px;
+  padding: var(--zq-space-4);
   height: 100%;
   overflow-y: auto;
 }
 
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
-}
-
 .selected {
-  color: #9fa8da;
-  font-size: 12px;
-}
-
-.status {
-  padding: 8px;
-  color: #b0b0b0;
-}
-
-.status.error {
-  color: #ef5350;
+  color: var(--zq-color-primary-light);
+  font-size: var(--zq-font-size-sm);
 }
 
 .job-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--zq-space-2);
 }
 
 .job-item {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
-  border: 1px solid transparent;
-  cursor: pointer;
-}
-
-.job-item:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.job-item.selected {
-  border-color: rgba(38, 166, 154, 0.6);
-  background: rgba(38, 166, 154, 0.08);
+  gap: var(--zq-space-3);
 }
 
 .job-main {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--zq-space-1);
 }
 
 .job-id {
-  color: #e0e0e0;
+  color: var(--zq-text-primary);
   font-family: monospace;
-  font-size: 12px;
+  font-size: var(--zq-font-size-sm);
   word-break: break-all;
 }
 
 .job-meta {
   display: flex;
-  gap: 10px;
+  gap: var(--zq-space-3);
   flex-wrap: wrap;
-  color: #9e9e9e;
-  font-size: 12px;
-}
-
-.job-status {
-  padding: 2px 8px;
-  border-radius: 3px;
-  font-size: 12px;
-  color: #fff;
-  text-transform: uppercase;
+  color: var(--zq-text-muted);
+  font-size: var(--zq-font-size-sm);
 }
 
 .job-right {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
+  gap: var(--zq-space-2);
   flex-shrink: 0;
 }
 
-.actions {
-  display: flex;
-  gap: 8px;
-}
-
 .job-stop {
-  color: #ffb74d;
+  color: var(--zq-color-warning);
 }
 
 .job-retrying {
-  color: #64b5f6;
-}
-
-.job-status.st-running {
-  background: #1976d2;
-}
-
-.job-status.st-done {
-  background: #388e3c;
-}
-
-.job-status.st-error {
-  background: #d32f2f;
-}
-
-.job-status.st-queued {
-  background: #757575;
-}
-
-.job-status.st-stopped {
-  background: #616161;
-}
-
-.job-status.st-reaped {
-  background: #455a64;
+  color: var(--zq-color-primary-light);
 }
 
 .modal-body {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--zq-space-3);
 }
 
 .modal-hint {
-  color: #b0b0b0;
-  font-size: 12px;
+  color: var(--zq-text-secondary);
+  font-size: var(--zq-font-size-sm);
 }
 </style>
