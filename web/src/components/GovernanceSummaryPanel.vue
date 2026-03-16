@@ -36,7 +36,7 @@ const { data, isLoading, error } = useQuery({
 .panel-header {
   padding: var(--zq-space-3) var(--zq-space-4);
   font-weight: 600;
-  border-bottom: 1px solid var(--zq-border-subtle);
+  border-bottom: var(--zq-border-width-1) solid var(--zq-border-subtle);
 }
 
 .panel-content {
@@ -60,7 +60,7 @@ const { data, isLoading, error } = useQuery({
 }
 
 .status-badge {
-  padding: 2px var(--zq-space-2);
+  padding: var(--zq-space-05) var(--zq-space-2);
   border-radius: var(--zq-radius-sm);
   font-size: var(--zq-font-size-sm);
   font-weight: 600;

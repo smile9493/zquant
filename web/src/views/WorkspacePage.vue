@@ -165,7 +165,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 .top-bar {
   height: var(--zq-height-topbar);
   background: var(--zq-bg-surface);
-  border-bottom: 1px solid var(--zq-border-subtle);
+  border-bottom: var(--zq-border-width-1) solid var(--zq-border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -188,7 +188,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
   width: 100px;
   padding: var(--zq-space-1) var(--zq-space-2);
   background: var(--zq-bg-input);
-  border: 1px solid var(--zq-border-subtle);
+  border: var(--zq-border-width-1) solid var(--zq-border-subtle);
   border-radius: var(--zq-radius-md);
   color: var(--zq-text-primary);
   font-size: var(--zq-font-size-md);
@@ -202,7 +202,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 .timeframe-select {
   padding: var(--zq-space-1) var(--zq-space-2);
   background: var(--zq-bg-input);
-  border: 1px solid var(--zq-border-subtle);
+  border: var(--zq-border-width-1) solid var(--zq-border-subtle);
   border-radius: var(--zq-radius-md);
   color: var(--zq-text-primary);
   font-size: var(--zq-font-size-md);
@@ -217,7 +217,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 .refresh-btn {
   padding: var(--zq-space-1) var(--zq-space-3);
   background: var(--zq-primary-alpha-15);
-  border: 1px solid var(--zq-primary-alpha-40);
+  border: var(--zq-border-width-1) solid var(--zq-primary-alpha-40);
   border-radius: var(--zq-radius-md);
   color: var(--zq-color-primary);
   font-size: var(--zq-font-size-md);
@@ -240,9 +240,9 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 }
 
 .mode-badge {
-  padding: 2px var(--zq-space-2);
+  padding: var(--zq-space-05) var(--zq-space-2);
   background: var(--zq-primary-alpha-15);
-  border: 1px solid var(--zq-primary-alpha-40);
+  border: var(--zq-border-width-1) solid var(--zq-primary-alpha-40);
   border-radius: var(--zq-radius-sm);
   color: var(--zq-color-primary);
   font-size: var(--zq-font-size-xs);
@@ -280,7 +280,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 .panel-btn {
   padding: 6px var(--zq-space-3);
   background: var(--zq-bg-input);
-  border: 1px solid var(--zq-border-subtle);
+  border: var(--zq-border-width-1) solid var(--zq-border-subtle);
   border-radius: var(--zq-radius-md);
   color: var(--zq-text-secondary);
   font-size: var(--zq-font-size-md);
@@ -308,7 +308,7 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 .left-sidebar {
   width: var(--zq-width-sidebar);
   background: var(--zq-bg-surface-elevated);
-  border-right: 1px solid var(--zq-border-subtle);
+  border-right: var(--zq-border-width-1) solid var(--zq-border-subtle);
 }
 
 .center-area {
@@ -333,10 +333,10 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
 .right-dock {
   width: var(--zq-width-dock);
   background: var(--zq-bg-surface-elevated);
-  border-left: 1px solid var(--zq-border-subtle);
+  border-left: var(--zq-border-width-1) solid var(--zq-border-subtle);
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--zq-space-025);
 }
 
 .panel {
@@ -349,6 +349,6 @@ watch([symbol, timeframe, rightPanel, activeTab], () => {
   height: var(--zq-height-bottom-dock);
   margin-left: var(--zq-width-sidebar);
   background: var(--zq-bg-surface-elevated);
-  border-top: 1px solid var(--zq-border-subtle);
+  border-top: var(--zq-border-width-1) solid var(--zq-border-subtle);
 }
 </style>

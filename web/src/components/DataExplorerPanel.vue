@@ -117,7 +117,7 @@ const selectDataSet = (id: string) => {
 .panel-header {
   padding: var(--zq-space-3) var(--zq-space-4);
   font-weight: 600;
-  border-bottom: 1px solid var(--zq-border-subtle);
+  border-bottom: var(--zq-border-width-1) solid var(--zq-border-subtle);
 }
 
 .panel-content {
@@ -142,7 +142,7 @@ const selectDataSet = (id: string) => {
   width: 100%;
   padding: var(--zq-space-2);
   background: var(--zq-bg-input);
-  border: 1px solid var(--zq-border-subtle);
+  border: var(--zq-border-width-1) solid var(--zq-border-subtle);
   border-radius: var(--zq-radius-md);
   color: var(--zq-text-primary);
   font-size: var(--zq-font-size-base);
@@ -160,7 +160,7 @@ const selectDataSet = (id: string) => {
 }
 
 .data-item {
-  padding: 6px var(--zq-space-2);
+  padding: var(--zq-space-15) var(--zq-space-2);
   background: var(--zq-bg-item);
   border-radius: var(--zq-radius-sm);
   margin-bottom: var(--zq-space-1);
@@ -176,7 +176,7 @@ const selectDataSet = (id: string) => {
 
 .data-item.selected {
   background: var(--zq-primary-alpha-20);
-  border: 1px solid var(--zq-primary-alpha-40);
+  border: var(--zq-border-width-1) solid var(--zq-primary-alpha-40);
   color: var(--zq-color-primary);
 }
 

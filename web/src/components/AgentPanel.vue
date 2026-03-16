@@ -95,7 +95,7 @@ const formatTime = (timestamp: string) => {
 }
 
 .status-badge {
-  padding: 2px var(--zq-space-2);
+  padding: var(--zq-space-05) var(--zq-space-2);
   border-radius: var(--zq-radius-sm);
   font-size: var(--zq-font-size-xs);
   text-transform: uppercase;
@@ -177,7 +177,7 @@ const formatTime = (timestamp: string) => {
 .error-content {
   padding: var(--zq-space-3);
   background: var(--zq-bg-code);
-  border: 1px solid var(--zq-border-subtle);
+  border: var(--zq-border-width-1) solid var(--zq-border-subtle);
   border-radius: var(--zq-radius-md);
   font-size: var(--zq-font-size-sm);
   font-family: 'JetBrains Mono', monospace;

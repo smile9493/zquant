@@ -104,7 +104,7 @@ const data = computed(() => {
 }
 
 .log-item {
-  padding: 6px var(--zq-space-2);
+  padding: var(--zq-space-15) var(--zq-space-2);
   font-family: monospace;
   font-size: var(--zq-font-size-md);
   display: flex;
