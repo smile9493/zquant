@@ -1,0 +1,6 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/desktop/app-shell-guidelines.md", "reason": "Shell-workbench boundary constraints"}
+{"file": ".trellis/spec/desktop/index.md", "reason": "M2 desktop scope baseline"}
+{"file": ".trellis/spec/desktop/renderer-bevy-guidelines.md", "reason": "Bevy rendering integration rules"}
+{"file": ".trellis/spec/backend/rust-coding-guidelines.md", "reason": "Rust runtime/error handling constraints"}

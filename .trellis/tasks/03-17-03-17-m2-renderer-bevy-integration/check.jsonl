@@ -1,0 +1,6 @@
+{"file": ".kilocode/workflows/finish-work.md", "reason": "Finish work checklist"}
+{"file": ".kilocode/workflows/check-backend.md", "reason": "Backend check spec"}
+{"file": ".trellis/spec/desktop/app-shell-guidelines.md", "reason": "Review shell integration boundary"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Review UI-render-application cross-layer consistency"}
+{"file": ".trellis/spec/desktop/renderer-bevy-guidelines.md", "reason": "Review rendering loop and interaction"}
+{"file": ".trellis/spec/backend/rust-coding-guidelines.md", "reason": "Review runtime safety and async patterns"}

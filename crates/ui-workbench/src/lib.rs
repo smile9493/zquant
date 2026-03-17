@@ -1,6 +1,7 @@
-use egui::{Context, CentralPanel, TopBottomPanel, SidePanel};
+use egui::{Context, CentralPanel, TopBottomPanel, SidePanel, Color32};
+use egui_plot::{Plot, Bar, BarChart, Line, PlotPoints};
 use serde::{Deserialize, Serialize};
-use tracing::debug;
+use tracing::{debug, info};
 use application_core::WorkspaceSnapshot;
 use std::collections::VecDeque;
 
@@ -22,6 +23,25 @@ impl Default for PanelState {
     }
 }
 
+/// Single OHLC candle for chart rendering
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Candle {
+    pub timestamp: f64,
+    pub open: f64,
+    pub high: f64,
+    pub low: f64,
+    pub close: f64,
+}
+
+/// Render snapshot: data contract between UI state and chart rendering.
+/// Kept inside ui-workbench to avoid leaking plot types into application-core.
+#[derive(Debug, Clone)]
+pub struct RenderSnapshot {
+    pub symbol: String,
+    pub timeframe: String,
+    pub candles: Vec<Candle>,
+}
+
 /// Commands that workbench can send to application layer
 #[derive(Debug, Clone)]
 pub enum WorkbenchCommand {
@@ -30,28 +50,69 @@ pub enum WorkbenchCommand {
     SaveWorkspace(WorkspaceSnapshot),
 }
 
-/// Workbench manages the main UI layout
+/// Workbench manages the main UI layout and chart rendering
 pub struct Workbench {
     panel_state: PanelState,
     command_queue: VecDeque<WorkbenchCommand>,
     current_symbol: String,
     current_timeframe: String,
+    render_snapshot: Option<RenderSnapshot>,
 }
 
 impl Workbench {
     pub fn new() -> Self {
         debug!("Creating new Workbench");
+        let demo_candles = Self::generate_demo_candles();
+        let snapshot = RenderSnapshot {
+            symbol: "AAPL".to_string(),
+            timeframe: "1D".to_string(),
+            candles: demo_candles,
+        };
+        info!("Workbench initialized with {} demo candles", snapshot.candles.len());
         Self {
             panel_state: PanelState::default(),
             command_queue: VecDeque::new(),
             current_symbol: "AAPL".to_string(),
             current_timeframe: "1D".to_string(),
+            render_snapshot: Some(snapshot),
         }
+    }
+
+    /// Generate demo OHLC data for initial display
+    fn generate_demo_candles() -> Vec<Candle> {
+        let mut candles = Vec::with_capacity(60);
+        let mut price = 150.0_f64;
+        for i in 0..60 {
+            let change = ((i as f64 * 0.7).sin() * 3.0) + ((i as f64 * 0.3).cos() * 1.5);
+            let open = price;
+            let close = price + change;
+            let high = open.max(close) + (1.0 + (i as f64 * 0.5).sin().abs() * 2.0);
+            let low = open.min(close) - (1.0 + (i as f64 * 0.3).cos().abs() * 2.0);
+            candles.push(Candle {
+                timestamp: i as f64,
+                open,
+                high,
+                low,
+                close,
+            });
+            price = close;
+        }
+        candles
     }
 
     /// Poll for pending commands
     pub fn poll_command(&mut self) -> Option<WorkbenchCommand> {
         self.command_queue.pop_front()
+    }
+
+    /// Update render snapshot with new candle data
+    pub fn update_render_snapshot(&mut self, snapshot: RenderSnapshot) {
+        info!(
+            symbol = %snapshot.symbol,
+            candles = snapshot.candles.len(),
+            "Render snapshot updated"
+        );
+        self.render_snapshot = Some(snapshot);
     }
 
     /// Restore workbench state from a workspace snapshot
@@ -92,8 +153,7 @@ impl Workbench {
             ui.horizontal(|ui| {
                 ui.heading("zquant");
                 ui.separator();
-                
-                // Panel toggle buttons
+
                 if ui.button(if self.panel_state.left_visible { "◀ 隐藏左侧" } else { "▶ 显示左侧" }).clicked() {
                     self.panel_state.left_visible = !self.panel_state.left_visible;
                 }
@@ -103,14 +163,12 @@ impl Workbench {
                 if ui.button(if self.panel_state.bottom_visible { "▼ 隐藏底部" } else { "▲ 显示底部" }).clicked() {
                     self.panel_state.bottom_visible = !self.panel_state.bottom_visible;
                 }
-                
+
                 ui.separator();
-                
-                // Action buttons (trigger facade calls)
+
                 if ui.button("🔄 刷新数据").clicked() {
                     self.enqueue_command(WorkbenchCommand::RefreshData);
                 }
-                
                 if ui.button("📊 加载图表").clicked() {
                     self.enqueue_command(WorkbenchCommand::LoadChart {
                         symbol: self.current_symbol.clone(),
@@ -153,32 +211,134 @@ impl Workbench {
                     ui.separator();
                     ui.label(format!("Symbol: {}", self.current_symbol));
                     ui.label(format!("Timeframe: {}", self.current_timeframe));
+                    if let Some(ref snap) = self.render_snapshot {
+                        ui.label(format!("K线数量: {}", snap.candles.len()));
+                    }
                     ui.label("Status: Ready");
                 });
         }
 
-        // Center canvas (main area)
+        // Center canvas with K-line chart
         CentralPanel::default().show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.add_space(100.0);
-                ui.heading("中心画布区域");
-                ui.add_space(20.0);
-                ui.label("工作台五区布局已就绪");
-                ui.add_space(10.0);
-                ui.label("Top: 顶部工具栏（含操作按钮）");
-                ui.label("Left: 左侧导航");
-                ui.label("Center: 中心画布（当前区域）");
-                ui.label("Right: 右侧属性面板");
-                ui.label("Bottom: 底部日志/任务面板");
-                ui.add_space(20.0);
-                ui.label("点击顶部按钮可触发进程内 Facade 调用");
-            });
+            self.render_chart(ui);
         });
+    }
+
+    /// Render K-line chart in center canvas using egui_plot.
+    /// Degrades to placeholder text if no data or on error.
+    fn render_chart(&self, ui: &mut egui::Ui) {
+        let snapshot = match &self.render_snapshot {
+            Some(s) if !s.candles.is_empty() => s,
+            _ => {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(100.0);
+                    ui.heading("中心画布区域");
+                    ui.label("暂无K线数据，点击「加载图表」获取数据");
+                });
+                return;
+            }
+        };
+
+        ui.heading(format!("{} - {} K线图", snapshot.symbol, snapshot.timeframe));
+
+        // Build candle bodies (bars) and wicks (lines)
+        let mut bull_bars = Vec::new();
+        let mut bear_bars = Vec::new();
+        let mut wick_points: Vec<[f64; 2]> = Vec::new();
+
+        let bar_width = 0.6;
+
+        for candle in &snapshot.candles {
+            let x = candle.timestamp;
+            let is_bull = candle.close >= candle.open;
+            let body_bottom = candle.open.min(candle.close);
+            let body_height = (candle.close - candle.open).abs().max(0.1);
+
+            let bar = Bar::new(x, body_height).base_offset(body_bottom).width(bar_width);
+
+            if is_bull {
+                bull_bars.push(bar);
+            } else {
+                bear_bars.push(bar);
+            }
+
+            // Wick: high-low vertical line segments
+            // We draw wicks as line segments by adding NaN-separated points
+            wick_points.push([x, candle.low]);
+            wick_points.push([x, candle.high]);
+            wick_points.push([f64::NAN, f64::NAN]); // separator
+        }
+
+        let bull_chart = BarChart::new(bull_bars)
+            .color(Color32::from_rgb(0, 180, 80))
+            .name("阳线");
+
+        let bear_chart = BarChart::new(bear_bars)
+            .color(Color32::from_rgb(220, 50, 50))
+            .name("阴线");
+
+        let wick_line = Line::new(PlotPoints::new(wick_points))
+            .color(Color32::from_rgb(150, 150, 150))
+            .name("影线");
+
+        Plot::new("kline_chart")
+            .allow_zoom(true)
+            .allow_drag(true)
+            .allow_scroll(true)
+            .x_axis_label("时间")
+            .y_axis_label("价格")
+            .legend(egui_plot::Legend::default())
+            .show(ui, |plot_ui| {
+                plot_ui.bar_chart(bull_chart);
+                plot_ui.bar_chart(bear_chart);
+                plot_ui.line(wick_line);
+            });
     }
 }
 
 impl Default for Workbench {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn demo_candles_generated() {
+        let candles = Workbench::generate_demo_candles();
+        assert_eq!(candles.len(), 60);
+        for c in &candles {
+            assert!(c.high >= c.open.max(c.close), "high must be >= max(open,close)");
+            assert!(c.low <= c.open.min(c.close), "low must be <= min(open,close)");
+        }
+    }
+
+    #[test]
+    fn render_snapshot_creation() {
+        let snap = RenderSnapshot {
+            symbol: "AAPL".into(),
+            timeframe: "1D".into(),
+            candles: vec![Candle {
+                timestamp: 0.0,
+                open: 100.0,
+                high: 105.0,
+                low: 95.0,
+                close: 102.0,
+            }],
+        };
+        assert_eq!(snap.candles.len(), 1);
+        assert_eq!(snap.symbol, "AAPL");
+    }
+
+    #[test]
+    fn workbench_command_queue() {
+        let mut wb = Workbench::new();
+        assert!(wb.poll_command().is_none());
+        wb.enqueue_command(WorkbenchCommand::RefreshData);
+        assert!(matches!(wb.poll_command(), Some(WorkbenchCommand::RefreshData)));
+        assert!(wb.poll_command().is_none());
     }
 }
