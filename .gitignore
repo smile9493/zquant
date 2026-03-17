@@ -13,6 +13,8 @@
 !/.claude/agents/
 !/.claude/agents/*.md
 /.cursor/
+/.kiro/
+/.kilocode/
 
 # Trellis: commit shared specs + tasks, ignore local workspace
 !.trellis/

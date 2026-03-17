@@ -6,7 +6,7 @@
 
 ## Top-level Layout
 
-- `apps/`: Rust binaries (entrypoints). Phase 1 uses `apps/job-kernel` as the single-process kernel.
+- `apps/`: Rust binaries (entrypoints). Current baseline includes `job-*` services; desktop evolution introduces `apps/desktop-app`.
 - `crates/`: Rust library crates (domain, application logic, infra).
 - `migrations/`: SQL migrations (Postgres), used by `sqlx::test`.
 - `deploy/`: local docker compose (dev services).
@@ -34,9 +34,11 @@ This repo uses a Cargo workspace with small, focused crates:
 Keep binaries thin:
 - Initialize logging.
 - Build shared components (store/bus/registry).
-- Start loops (API server, runner loops, supervisor loop).
+- Start loops (API server, runner loops, supervisor loop) or desktop shell lifecycle.
 
-Example: `apps/job-kernel/src/main.rs`.
+Examples:
+- Service/kernel mode: `apps/job-kernel/src/main.rs`
+- Desktop mode (target): `apps/desktop-app/src/main.rs`
 
 ## Naming Conventions
 
@@ -52,3 +54,4 @@ Example: `apps/job-kernel/src/main.rs`.
 - New event contracts: `crates/job-events/src/types.rs` and referenced from `bus.rs`.
 - New store methods: `crates/job-store-pg/src/lib.rs`.
 - New orchestration/loops: `crates/job-application/src/*`.
+- Desktop shell/workbench-specific UI orchestration should live in dedicated desktop crates (see `.trellis/spec/desktop/`).

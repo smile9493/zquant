@@ -1,0 +1,26 @@
+[package]
+name = "application-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+job-application = { path = "../job-application" }
+job-domain = { path = "../job-domain" }
+job-store-pg = { path = "../job-store-pg" }
+job-events = { path = "../job-events" }
+domain-workspace = { path = "../domain-workspace" }
+
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

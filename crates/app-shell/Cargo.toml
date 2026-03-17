@@ -1,0 +1,20 @@
+[package]
+name = "app-shell"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+ui-workbench = { path = "../ui-workbench" }
+application-core = { path = "../application-core" }
+
+eframe = "0.27"
+egui = "0.27"
+
+tokio = { workspace = true }
+tracing = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

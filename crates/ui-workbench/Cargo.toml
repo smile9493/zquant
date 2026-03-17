@@ -1,0 +1,15 @@
+[package]
+name = "ui-workbench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+application-core = { path = "../application-core" }
+
+egui = "0.27"
+
+tracing = { workspace = true }
+serde = { workspace = true }
