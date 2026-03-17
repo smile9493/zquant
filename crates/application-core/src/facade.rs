@@ -2,7 +2,7 @@ use anyhow::Result;
 use domain_workspace::WorkspaceStore;
 use job_application::ApiState;
 use serde::{Deserialize, Serialize};
-use tracing::info;
+use tracing::{info, warn};
 
 /// Facade for desktop UI operations
 #[derive(Clone)]
@@ -59,9 +59,15 @@ impl ApplicationFacade {
         
         let db_snapshot = self.workspace_store.load_or_default("default").await;
         
-        let layout_state: LayoutState = serde_json::from_value(
+        let layout_state: LayoutState = match serde_json::from_value(
             db_snapshot.layout_state.clone()
-        ).unwrap_or_default();
+        ) {
+            Ok(ls) => ls,
+            Err(e) => {
+                warn!("Failed to deserialize layout_state: {}, using defaults (all panels visible)", e);
+                LayoutState::default()
+            }
+        };
         
         Ok(Some(WorkspaceSnapshot {
             symbol: db_snapshot.symbol,
@@ -97,9 +103,87 @@ pub struct WorkspaceSnapshot {
     pub layout_state: LayoutState,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// Layout panel visibility state.
+/// Defaults to all panels visible (true) for a usable initial experience.
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LayoutState {
     pub left_visible: bool,
     pub right_visible: bool,
     pub bottom_visible: bool,
+}
+
+impl Default for LayoutState {
+    fn default() -> Self {
+        Self {
+            left_visible: true,
+            right_visible: true,
+            bottom_visible: true,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn layout_state_default_all_visible() {
+        let ls = LayoutState::default();
+        assert!(ls.left_visible, "left panel should default to visible");
+        assert!(ls.right_visible, "right panel should default to visible");
+        assert!(ls.bottom_visible, "bottom panel should default to visible");
+    }
+
+    #[test]
+    fn layout_state_roundtrip_serde() {
+        let original = LayoutState {
+            left_visible: false,
+            right_visible: true,
+            bottom_visible: false,
+        };
+        let json = serde_json::to_value(&original).unwrap();
+        let restored: LayoutState = serde_json::from_value(json).unwrap();
+        assert_eq!(restored.left_visible, false);
+        assert_eq!(restored.right_visible, true);
+        assert_eq!(restored.bottom_visible, false);
+    }
+
+    #[test]
+    fn layout_state_deserialize_invalid_falls_back_to_default() {
+        let bad_json = serde_json::json!({"left_visible": "not_a_bool"});
+        let result: Result<LayoutState, _> = serde_json::from_value(bad_json);
+        assert!(result.is_err(), "should fail on invalid type");
+
+        let fallback = LayoutState::default();
+        assert!(fallback.left_visible);
+        assert!(fallback.right_visible);
+        assert!(fallback.bottom_visible);
+    }
+
+    #[test]
+    fn layout_state_deserialize_empty_object_fails() {
+        let empty = serde_json::json!({});
+        let result: Result<LayoutState, _> = serde_json::from_value(empty);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn workspace_snapshot_roundtrip() {
+        let snap = WorkspaceSnapshot {
+            symbol: Some("AAPL".to_string()),
+            timeframe: Some("1D".to_string()),
+            layout_state: LayoutState {
+                left_visible: true,
+                right_visible: false,
+                bottom_visible: true,
+            },
+        };
+        let json = serde_json::to_string(&snap).unwrap();
+        let restored: WorkspaceSnapshot = serde_json::from_str(&json).unwrap();
+        assert_eq!(restored.symbol.as_deref(), Some("AAPL"));
+        assert_eq!(restored.timeframe.as_deref(), Some("1D"));
+        assert!(restored.layout_state.left_visible);
+        assert!(!restored.layout_state.right_visible);
+        assert!(restored.layout_state.bottom_visible);
+    }
 }

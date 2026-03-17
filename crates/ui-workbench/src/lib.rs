@@ -54,6 +54,20 @@ impl Workbench {
         self.command_queue.pop_front()
     }
 
+    /// Restore workbench state from a workspace snapshot
+    pub fn restore_from_snapshot(&mut self, snapshot: &WorkspaceSnapshot) {
+        if let Some(ref s) = snapshot.symbol {
+            self.current_symbol = s.clone();
+        }
+        if let Some(ref t) = snapshot.timeframe {
+            self.current_timeframe = t.clone();
+        }
+        self.panel_state.left_visible = snapshot.layout_state.left_visible;
+        self.panel_state.right_visible = snapshot.layout_state.right_visible;
+        self.panel_state.bottom_visible = snapshot.layout_state.bottom_visible;
+        debug!("Workbench state restored from snapshot");
+    }
+
     /// Create workspace snapshot
     pub fn create_snapshot(&self) -> WorkspaceSnapshot {
         WorkspaceSnapshot {

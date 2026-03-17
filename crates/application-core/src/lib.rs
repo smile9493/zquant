@@ -50,10 +50,22 @@ impl ApplicationCore {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_facade_creation() {
-        // This test requires a database connection
-        // For now, just verify the API structure compiles
-        assert!(true);
+    #[test]
+    fn application_core_exports_expected_types() {
+        // Verify public API surface is accessible
+        let _: fn() -> LayoutState = LayoutState::default;
+        let _: fn() -> WorkspaceSnapshot = || WorkspaceSnapshot {
+            symbol: None,
+            timeframe: None,
+            layout_state: LayoutState::default(),
+        };
+        // ChartData is constructible
+        let cd = ChartData {
+            symbol: "TEST".into(),
+            timeframe: "1D".into(),
+            data_points: vec![],
+        };
+        assert_eq!(cd.symbol, "TEST");
+        assert!(cd.data_points.is_empty());
     }
 }
