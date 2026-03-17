@@ -1,0 +1,5 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": ".trellis/spec/desktop/parquet-archive-guidelines.md", "reason": "M3 archive storage rules"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "PostgreSQL schema/query constraints for manifest"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Storage failure classification and retries"}
