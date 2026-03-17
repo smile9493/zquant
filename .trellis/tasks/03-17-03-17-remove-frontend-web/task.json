@@ -1,0 +1,50 @@
+{
+  "id": "03-17-remove-frontend-web",
+  "name": "03-17-remove-frontend-web",
+  "title": "Remove frontend (delete web app)",
+  "description": "User-requested removal of frontend: delete web/ and related frontend specs, leaving backend only.",
+  "status": "completed",
+  "dev_type": "frontend",
+  "scope": "repo",
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-17",
+  "completedAt": "2026-03-17",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [
+    "web/",
+    ".trellis/spec/frontend/",
+    ".trellis/workflow.md",
+    "README.md",
+    "QUICKSTART.md"
+  ],
+  "notes": "Completed. Removed frontend app (web/) and frontend spec directory (.trellis/spec/frontend), updated workflow/spec references, and verified backend via cargo check.",
+  "meta": {}
+}

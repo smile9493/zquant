@@ -26,18 +26,6 @@ Fill in the guideline files based on your **existing codebase**.
 | `.trellis/spec/backend/logging-guidelines.md` | Log levels, format, what to log |
 | `.trellis/spec/backend/quality-guidelines.md` | Code review standards, testing requirements |
 
-### Frontend Guidelines (Needed)
-
-This repo now contains a Vue 3 frontend (`A:\zquant\web`). Add a minimal frontend spec set so agents can follow project conventions:
-
-- `.trellis/spec/frontend/index.md` (导航 + 必读清单)
-- `.trellis/spec/frontend/component-guidelines.md` (Vue SFC structure, styling, naming)
-- `.trellis/spec/frontend/state-guidelines.md` (Pinia store patterns, URL-as-State rules)
-- `.trellis/spec/frontend/api-guidelines.md` (API client, error handling, typed DTOs)
-- `.trellis/spec/frontend/quality-guidelines.md` (build/test commands, review checklist)
-
-Non-goal: invent new architecture; document the conventions already used in `A:\zquant\web\src`.
-
 
 ### Thinking Guides (Optional)
 

@@ -37,4 +37,3 @@ Last updated: 2026-03-17
 
 - Language: English (required for this directory).
 - Scope: Rust backend (apps + crates).
-- Frontend conventions are tracked separately under `.trellis/spec/frontend/`.

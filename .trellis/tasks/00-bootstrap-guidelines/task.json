@@ -16,10 +16,6 @@
       "status": "pending"
     },
     {
-      "name": "Add frontend guidelines (Vue/TS)",
-      "status": "pending"
-    },
-    {
       "name": "Add code examples",
       "status": "pending"
     }
@@ -27,8 +23,7 @@
   "children": [],
   "parent": null,
   "relatedFiles": [
-    ".trellis/spec/backend/",
-    ".trellis/spec/frontend/"
+    ".trellis/spec/backend/"
   ],
   "notes": "First-time setup task created by trellis init (backend project)",
   "meta": {}

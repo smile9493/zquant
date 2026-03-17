@@ -42,7 +42,6 @@ Before implementing, read:
 Read relevant specs based on task type:
 
 - Backend: `.trellis/spec/backend/`
-- Frontend: `.trellis/spec/frontend/`
 - Guides: `.trellis/spec/guides/`
 
 ### 2. Understand Requirements
