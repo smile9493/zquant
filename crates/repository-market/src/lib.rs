@@ -6,16 +6,78 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use infra_parquet::{ArchiveConfig, MarketDataPoint, PartitionKey, ParquetReader};
+use infra_parquet::{ArchiveConfig, MarketDataPoint, PartitionKey, ParquetReader, ParquetWriter};
 use sqlx::PgPool;
 use store_manifest::{ManifestStore, PartitionRecord};
 use tracing::{debug, info, warn};
 
+mod error;
 mod gap;
 mod hot_store;
 
+pub use error::{classify_error, retry_on_transient, ErrorKind, RetryConfig};
 pub use gap::{Gap, GapCalculator};
 pub use hot_store::HotStore;
+
+/// No-op provider (placeholder for T3)
+struct NoOpProvider;
+
+#[async_trait]
+impl ProviderOps for NoOpProvider {
+    async fn fetch_bars(
+        &self,
+        _provider: &str,
+        _exchange: &str,
+        _symbol: &str,
+        _timeframe: &str,
+        _start: DateTime<Utc>,
+        _end: DateTime<Utc>,
+    ) -> Result<Vec<Bar>> {
+        Ok(Vec::new())
+    }
+}
+
+#[async_trait]
+impl HotStoreWriter for HotStore {
+    async fn upsert_bars(
+        &self,
+        _provider: &str,
+        _exchange: &str,
+        _symbol: &str,
+        _timeframe: &str,
+        _bars: &[Bar],
+    ) -> Result<usize> {
+        // Placeholder: would insert/update bars in PostgreSQL
+        Ok(0)
+    }
+}
+
+/// Trait for provider operations (fetching remote data)
+#[async_trait]
+pub trait ProviderOps: Send + Sync {
+    async fn fetch_bars(
+        &self,
+        provider: &str,
+        exchange: &str,
+        symbol: &str,
+        timeframe: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<Bar>>;
+}
+
+/// Trait for hot store write operations
+#[async_trait]
+pub trait HotStoreWriter: Send + Sync {
+    async fn upsert_bars(
+        &self,
+        provider: &str,
+        exchange: &str,
+        symbol: &str,
+        timeframe: &str,
+        bars: &[Bar],
+    ) -> Result<usize>;
+}
 
 /// Trait for hot store operations (enables testing)
 #[async_trait]
@@ -140,29 +202,48 @@ impl From<Bar> for MarketDataPoint {
 /// Market data repository with layered storage
 pub struct MarketRepository {
     hot_store: Box<dyn HotStoreOps>,
+    hot_store_writer: Box<dyn HotStoreWriter>,
     manifest_store: Box<dyn ManifestStoreOps>,
     parquet_reader: Box<dyn ParquetReaderOps>,
+    parquet_writer: ParquetWriter,
+    provider: Box<dyn ProviderOps>,
+    retry_config: RetryConfig,
 }
 
 impl MarketRepository {
     pub fn new(pool: PgPool, archive_config: ArchiveConfig) -> Self {
         Self {
             hot_store: Box::new(HotStore::new(pool.clone())),
+            hot_store_writer: Box::new(HotStore::new(pool.clone())),
             manifest_store: Box::new(ManifestStore::new(pool)),
-            parquet_reader: Box::new(ParquetReader::new(archive_config)),
+            parquet_reader: Box::new(ParquetReader::new(archive_config.clone())),
+            parquet_writer: ParquetWriter::new(archive_config),
+            provider: Box::new(NoOpProvider),
+            retry_config: RetryConfig::default(),
         }
     }
 
     #[cfg(test)]
     fn new_with_deps(
         hot_store: Box<dyn HotStoreOps>,
+        hot_store_writer: Box<dyn HotStoreWriter>,
         manifest_store: Box<dyn ManifestStoreOps>,
         parquet_reader: Box<dyn ParquetReaderOps>,
+        parquet_writer: ParquetWriter,
+        provider: Box<dyn ProviderOps>,
     ) -> Self {
         Self {
             hot_store,
+            hot_store_writer,
             manifest_store,
             parquet_reader,
+            parquet_writer,
+            provider,
+            retry_config: RetryConfig {
+                max_retries: 2,
+                base_delay_ms: 1,
+                max_delay_ms: 5,
+            },
         }
     }
 
@@ -172,7 +253,9 @@ impl MarketRepository {
     /// 1. Query hot store (PostgreSQL)
     /// 2. Calculate gaps
     /// 3. Fill gaps from Parquet archive
-    /// 4. Merge and deduplicate results
+    /// 4. Merge hot + archive, recalculate remaining gaps
+    /// 5. Fill remaining gaps from remote provider, write back to hot store
+    /// 6. Final merge and deduplicate
     pub async fn load_bars_range(
         &self,
         provider: &str,
@@ -238,12 +321,80 @@ impl MarketRepository {
             }
         }
 
-        // Step 4: Merge and deduplicate
-        let merged = Self::merge_and_deduplicate(hot_bars, archive_bars);
+        // Step 4: Merge hot + archive, then check for remaining gaps
+        let after_parquet = Self::merge_and_deduplicate(hot_bars, archive_bars);
+
+        // Step 5: Remote backfill – fetch remaining gaps from provider
+        let remaining_gaps = GapCalculator::calculate_gaps(start, end, &after_parquet);
+        let mut remote_bars = Vec::new();
+
+        if !remaining_gaps.is_empty() {
+            info!(
+                remaining_gap_count = remaining_gaps.len(),
+                "Gaps remain after Parquet, querying remote provider"
+            );
+
+            for gap in &remaining_gaps {
+                let gap_start = gap.start;
+                let gap_end = gap.end;
+
+                let fetch_result = retry_on_transient(
+                    &self.retry_config,
+                    "provider.fetch_bars",
+                    || self.provider.fetch_bars(provider, exchange, symbol, timeframe, gap_start, gap_end),
+                )
+                .await;
+
+                match fetch_result {
+                    Ok(fetched) if !fetched.is_empty() => {
+                        debug!(
+                            gap_start = %gap_start,
+                            gap_end = %gap_end,
+                            fetched_count = fetched.len(),
+                            "Fetched bars from remote provider"
+                        );
+
+                        // Write back to hot store (best-effort)
+                        if let Err(e) = self
+                            .hot_store_writer
+                            .upsert_bars(provider, exchange, symbol, timeframe, &fetched)
+                            .await
+                        {
+                            warn!(
+                                error = %e,
+                                "Failed to write remote bars to hot store, continuing"
+                            );
+                        }
+
+                        remote_bars.extend(fetched);
+                    }
+                    Ok(_) => {
+                        debug!(
+                            gap_start = %gap_start,
+                            gap_end = %gap_end,
+                            "Remote provider returned no data for gap"
+                        );
+                    }
+                    Err(e) => {
+                        let error_kind = classify_error(&e);
+                        warn!(
+                            gap_start = %gap_start,
+                            gap_end = %gap_end,
+                            error = %e,
+                            error_kind = %error_kind,
+                            "Failed to fetch from remote provider, gap remains"
+                        );
+                    }
+                }
+            }
+        }
+
+        // Step 6: Final merge
+        let merged = Self::merge_and_deduplicate(after_parquet, remote_bars);
 
         info!(
             total = merged.len(),
-            "Merged hot and archive data"
+            "Merged hot + archive + remote data"
         );
 
         Ok(merged)
@@ -267,11 +418,26 @@ impl MarketRepository {
             .context("Failed to find partitions in manifest")?;
 
         if partitions.is_empty() {
-            debug!("No partitions found in manifest for range");
+            info!(
+                provider,
+                exchange,
+                symbol,
+                timeframe,
+                start = %start,
+                end = %end,
+                "No partitions found in manifest for time range"
+            );
             return Ok(Vec::new());
         }
 
-        debug!(partition_count = partitions.len(), "Found partitions in manifest");
+        debug!(
+            provider,
+            exchange,
+            symbol,
+            timeframe,
+            partition_count = partitions.len(),
+            "Found partitions in manifest"
+        );
 
         // Read from each partition
         let mut all_bars = Vec::new();
@@ -289,9 +455,12 @@ impl MarketRepository {
                     all_bars.extend(bars);
                 }
                 Err(e) => {
+                    let error_kind = classify_error(&e);
                     warn!(
                         partition = ?key,
                         error = %e,
+                        error_kind = %error_kind,
+                        error_source = ?e.source(),
                         "Failed to read Parquet partition, skipping"
                     );
                 }
@@ -373,6 +542,46 @@ mod tests {
 
     // Mock implementations for testing
 
+    struct MockHotStoreWriter {
+        call_count: Arc<Mutex<usize>>,
+    }
+
+    #[async_trait]
+    impl HotStoreWriter for MockHotStoreWriter {
+        async fn upsert_bars(
+            &self,
+            _provider: &str,
+            _exchange: &str,
+            _symbol: &str,
+            _timeframe: &str,
+            _bars: &[Bar],
+        ) -> Result<usize> {
+            *self.call_count.lock().unwrap() += 1;
+            Ok(0)
+        }
+    }
+
+    struct MockProvider {
+        bars: Vec<Bar>,
+        call_count: Arc<Mutex<usize>>,
+    }
+
+    #[async_trait]
+    impl ProviderOps for MockProvider {
+        async fn fetch_bars(
+            &self,
+            _provider: &str,
+            _exchange: &str,
+            _symbol: &str,
+            _timeframe: &str,
+            _start: DateTime<Utc>,
+            _end: DateTime<Utc>,
+        ) -> Result<Vec<Bar>> {
+            *self.call_count.lock().unwrap() += 1;
+            Ok(self.bars.clone())
+        }
+    }
+
     struct MockHotStore {
         bars: Vec<Bar>,
     }
@@ -416,6 +625,7 @@ mod tests {
     struct MockParquetReader {
         bars: Vec<Bar>,
         call_count: Arc<Mutex<usize>>,
+        should_fail: bool,
     }
 
     #[async_trait]
@@ -427,6 +637,11 @@ mod tests {
             _end: DateTime<Utc>,
         ) -> Result<Vec<MarketDataPoint>> {
             *self.call_count.lock().unwrap() += 1;
+            
+            if self.should_fail {
+                anyhow::bail!("Simulated Parquet read failure");
+            }
+            
             Ok(self.bars.iter().map(|b| b.clone().into()).collect())
         }
     }
@@ -445,10 +660,18 @@ mod tests {
 
         let manifest_call_count = Arc::new(Mutex::new(0));
         let parquet_call_count = Arc::new(Mutex::new(0));
+        let writer_call_count = Arc::new(Mutex::new(0));
+        let provider_call_count = Arc::new(Mutex::new(0));
+
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let archive_config = ArchiveConfig::new(tmp_dir.path().to_path_buf());
 
         let repo = MarketRepository::new_with_deps(
             Box::new(MockHotStore {
                 bars: hot_bars.clone(),
+            }),
+            Box::new(MockHotStoreWriter {
+                call_count: writer_call_count.clone(),
             }),
             Box::new(MockManifestStore {
                 partitions: vec![],
@@ -457,6 +680,12 @@ mod tests {
             Box::new(MockParquetReader {
                 bars: vec![],
                 call_count: parquet_call_count.clone(),
+                should_fail: false,
+            }),
+            ParquetWriter::new(archive_config),
+            Box::new(MockProvider {
+                bars: vec![],
+                call_count: provider_call_count.clone(),
             }),
         );
 
@@ -494,6 +723,8 @@ mod tests {
 
         let manifest_call_count = Arc::new(Mutex::new(0));
         let parquet_call_count = Arc::new(Mutex::new(0));
+        let writer_call_count = Arc::new(Mutex::new(0));
+        let provider_call_count = Arc::new(Mutex::new(0));
 
         let _partition_key = PartitionKey::new(
             "akshare".to_string(),
@@ -518,9 +749,15 @@ mod tests {
             updated_at: Utc::now(),
         };
 
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let archive_config = ArchiveConfig::new(tmp_dir.path().to_path_buf());
+
         let repo = MarketRepository::new_with_deps(
             Box::new(MockHotStore {
                 bars: hot_bars.clone(),
+            }),
+            Box::new(MockHotStoreWriter {
+                call_count: writer_call_count.clone(),
             }),
             Box::new(MockManifestStore {
                 partitions: vec![partition_record],
@@ -529,6 +766,12 @@ mod tests {
             Box::new(MockParquetReader {
                 bars: archive_bars.clone(),
                 call_count: parquet_call_count.clone(),
+                should_fail: false,
+            }),
+            ParquetWriter::new(archive_config),
+            Box::new(MockProvider {
+                bars: vec![],
+                call_count: provider_call_count.clone(),
             }),
         );
 
@@ -547,5 +790,320 @@ mod tests {
         // Note: There are 2 gaps (prefix and suffix), so manifest is queried twice
         assert_eq!(*manifest_call_count.lock().unwrap(), 2, "Manifest should be queried twice (one per gap)");
         assert_eq!(*parquet_call_count.lock().unwrap(), 2, "Parquet should be queried twice (one per partition per gap)");
+    }
+
+    #[tokio::test]
+    async fn load_bars_range_with_empty_manifest_returns_hot_only() {
+        // Setup: hot store returns partial data, but manifest has no partitions
+        let start = Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2024, 3, 17, 15, 0, 0).unwrap();
+
+        let hot_start = Utc.with_ymd_and_hms(2024, 3, 17, 12, 0, 0).unwrap();
+        let hot_bars = vec![
+            create_test_bar(hot_start),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 13, 0, 0).unwrap()),
+        ];
+
+        let manifest_call_count = Arc::new(Mutex::new(0));
+        let parquet_call_count = Arc::new(Mutex::new(0));
+        let writer_call_count = Arc::new(Mutex::new(0));
+        let provider_call_count = Arc::new(Mutex::new(0));
+
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let archive_config = ArchiveConfig::new(tmp_dir.path().to_path_buf());
+
+        let repo = MarketRepository::new_with_deps(
+            Box::new(MockHotStore {
+                bars: hot_bars.clone(),
+            }),
+            Box::new(MockHotStoreWriter {
+                call_count: writer_call_count.clone(),
+            }),
+            Box::new(MockManifestStore {
+                partitions: vec![], // Empty manifest
+                call_count: manifest_call_count.clone(),
+            }),
+            Box::new(MockParquetReader {
+                bars: vec![],
+                call_count: parquet_call_count.clone(),
+                should_fail: false,
+            }),
+            ParquetWriter::new(archive_config),
+            Box::new(MockProvider {
+                bars: vec![],
+                call_count: provider_call_count.clone(),
+            }),
+        );
+
+        // Execute
+        let result = repo
+            .load_bars_range("akshare", "SSE", "000001", "1d", start, end)
+            .await
+            .unwrap();
+
+        // Verify: returns hot data only, Parquet not queried due to empty manifest
+        assert_eq!(result.len(), 2, "Should return only hot data");
+        assert_eq!(result[0].timestamp, hot_start);
+        assert_eq!(*manifest_call_count.lock().unwrap(), 2, "Manifest should be queried for gaps");
+        assert_eq!(*parquet_call_count.lock().unwrap(), 0, "Parquet should not be queried when manifest is empty");
+    }
+
+    #[tokio::test]
+    async fn load_bars_range_with_parquet_read_failure_returns_hot_only() {
+        // Setup: hot store returns partial data, manifest has partitions, but Parquet read fails
+        let start = Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2024, 3, 17, 15, 0, 0).unwrap();
+
+        let hot_start = Utc.with_ymd_and_hms(2024, 3, 17, 12, 0, 0).unwrap();
+        let hot_bars = vec![
+            create_test_bar(hot_start),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 13, 0, 0).unwrap()),
+        ];
+
+        let manifest_call_count = Arc::new(Mutex::new(0));
+        let parquet_call_count = Arc::new(Mutex::new(0));
+        let writer_call_count = Arc::new(Mutex::new(0));
+        let provider_call_count = Arc::new(Mutex::new(0));
+
+        let partition_record = PartitionRecord {
+            id: 1,
+            provider: "akshare".to_string(),
+            exchange: "SSE".to_string(),
+            symbol: "000001".to_string(),
+            timeframe: "1d".to_string(),
+            partition_date: chrono::NaiveDate::from_ymd_opt(2024, 3, 17).unwrap(),
+            file_path: "akshare/SSE/000001/1d/2024-03-17.parquet".to_string(),
+            row_count: 2,
+            min_timestamp: Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap(),
+            max_timestamp: Utc.with_ymd_and_hms(2024, 3, 17, 10, 0, 0).unwrap(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let archive_config = ArchiveConfig::new(tmp_dir.path().to_path_buf());
+
+        let repo = MarketRepository::new_with_deps(
+            Box::new(MockHotStore {
+                bars: hot_bars.clone(),
+            }),
+            Box::new(MockHotStoreWriter {
+                call_count: writer_call_count.clone(),
+            }),
+            Box::new(MockManifestStore {
+                partitions: vec![partition_record],
+                call_count: manifest_call_count.clone(),
+            }),
+            Box::new(MockParquetReader {
+                bars: vec![],
+                call_count: parquet_call_count.clone(),
+                should_fail: true, // Simulate Parquet read failure
+            }),
+            ParquetWriter::new(archive_config),
+            Box::new(MockProvider {
+                bars: vec![],
+                call_count: provider_call_count.clone(),
+            }),
+        );
+
+        // Execute
+        let result = repo
+            .load_bars_range("akshare", "SSE", "000001", "1d", start, end)
+            .await
+            .unwrap();
+
+        // Verify: returns hot data only, Parquet read failed but didn't break the flow
+        assert_eq!(result.len(), 2, "Should return only hot data when Parquet fails");
+        assert_eq!(result[0].timestamp, hot_start);
+        assert_eq!(*manifest_call_count.lock().unwrap(), 2, "Manifest should be queried for gaps");
+        assert_eq!(*parquet_call_count.lock().unwrap(), 2, "Parquet should be attempted but failed");
+    }
+
+    #[tokio::test]
+    async fn load_bars_range_with_remote_backfill() {
+        // Setup: hot store has partial data, Parquet has nothing,
+        // remote provider fills the gap and writes back to hot store.
+        let start = Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2024, 3, 17, 15, 0, 0).unwrap();
+
+        let hot_start = Utc.with_ymd_and_hms(2024, 3, 17, 12, 0, 0).unwrap();
+        let hot_bars = vec![
+            create_test_bar(hot_start),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 13, 0, 0).unwrap()),
+        ];
+
+        // Remote provider returns bars for the gap period
+        let remote_bars = vec![
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap()),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 10, 0, 0).unwrap()),
+        ];
+
+        let manifest_call_count = Arc::new(Mutex::new(0));
+        let parquet_call_count = Arc::new(Mutex::new(0));
+        let writer_call_count = Arc::new(Mutex::new(0));
+        let provider_call_count = Arc::new(Mutex::new(0));
+
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let archive_config = ArchiveConfig::new(tmp_dir.path().to_path_buf());
+
+        let repo = MarketRepository::new_with_deps(
+            Box::new(MockHotStore {
+                bars: hot_bars.clone(),
+            }),
+            Box::new(MockHotStoreWriter {
+                call_count: writer_call_count.clone(),
+            }),
+            Box::new(MockManifestStore {
+                partitions: vec![], // No Parquet partitions
+                call_count: manifest_call_count.clone(),
+            }),
+            Box::new(MockParquetReader {
+                bars: vec![],
+                call_count: parquet_call_count.clone(),
+                should_fail: false,
+            }),
+            ParquetWriter::new(archive_config),
+            Box::new(MockProvider {
+                bars: remote_bars.clone(),
+                call_count: provider_call_count.clone(),
+            }),
+        );
+
+        let result = repo
+            .load_bars_range("akshare", "SSE", "000001", "1d", start, end)
+            .await
+            .unwrap();
+
+        // Verify: hot + remote merged (4 bars total)
+        assert_eq!(result.len(), 4, "Should have 2 hot + 2 remote bars");
+        assert_eq!(result[0].timestamp, Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap());
+        assert_eq!(result[1].timestamp, Utc.with_ymd_and_hms(2024, 3, 17, 10, 0, 0).unwrap());
+        assert_eq!(result[2].timestamp, hot_start);
+
+        // Provider was called for remaining gaps
+        assert!(*provider_call_count.lock().unwrap() > 0, "Provider should be called for remaining gaps");
+
+        // Hot store writer was called to persist remote data
+        assert!(*writer_call_count.lock().unwrap() > 0, "Hot store writer should be called to persist remote bars");
+    }
+
+    #[tokio::test]
+    async fn load_bars_range_remote_backfill_idempotent() {
+        // Setup: hot store already has full data, provider should NOT be called
+        let start = Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2024, 3, 17, 11, 0, 0).unwrap();
+
+        let hot_bars = vec![
+            create_test_bar(start),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 10, 0, 0).unwrap()),
+            create_test_bar(end),
+        ];
+
+        let writer_call_count = Arc::new(Mutex::new(0));
+        let provider_call_count = Arc::new(Mutex::new(0));
+
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let archive_config = ArchiveConfig::new(tmp_dir.path().to_path_buf());
+
+        let repo = MarketRepository::new_with_deps(
+            Box::new(MockHotStore {
+                bars: hot_bars.clone(),
+            }),
+            Box::new(MockHotStoreWriter {
+                call_count: writer_call_count.clone(),
+            }),
+            Box::new(MockManifestStore {
+                partitions: vec![],
+                call_count: Arc::new(Mutex::new(0)),
+            }),
+            Box::new(MockParquetReader {
+                bars: vec![],
+                call_count: Arc::new(Mutex::new(0)),
+                should_fail: false,
+            }),
+            ParquetWriter::new(archive_config),
+            Box::new(MockProvider {
+                bars: vec![create_test_bar(start)], // Would return data if called
+                call_count: provider_call_count.clone(),
+            }),
+        );
+
+        let result = repo
+            .load_bars_range("akshare", "SSE", "000001", "1d", start, end)
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), 3, "Should return all hot bars");
+        assert_eq!(*provider_call_count.lock().unwrap(), 0, "Provider should NOT be called when no gaps");
+        assert_eq!(*writer_call_count.lock().unwrap(), 0, "Writer should NOT be called when no gaps");
+    }
+
+    #[tokio::test]
+    async fn load_bars_range_remote_provider_failure_returns_partial() {
+        // Setup: hot store partial, Parquet empty, provider fails → still returns hot data
+        let start = Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2024, 3, 17, 15, 0, 0).unwrap();
+
+        let hot_start = Utc.with_ymd_and_hms(2024, 3, 17, 12, 0, 0).unwrap();
+        let hot_bars = vec![
+            create_test_bar(hot_start),
+        ];
+
+        let provider_call_count = Arc::new(Mutex::new(0));
+
+        // Provider that always fails
+        struct FailingProvider {
+            call_count: Arc<Mutex<usize>>,
+        }
+
+        #[async_trait]
+        impl ProviderOps for FailingProvider {
+            async fn fetch_bars(
+                &self,
+                _provider: &str,
+                _exchange: &str,
+                _symbol: &str,
+                _timeframe: &str,
+                _start: DateTime<Utc>,
+                _end: DateTime<Utc>,
+            ) -> Result<Vec<Bar>> {
+                *self.call_count.lock().unwrap() += 1;
+                anyhow::bail!("Simulated provider failure")
+            }
+        }
+
+        let tmp_dir = tempfile::TempDir::new().unwrap();
+        let archive_config = ArchiveConfig::new(tmp_dir.path().to_path_buf());
+
+        let repo = MarketRepository::new_with_deps(
+            Box::new(MockHotStore {
+                bars: hot_bars.clone(),
+            }),
+            Box::new(MockHotStoreWriter {
+                call_count: Arc::new(Mutex::new(0)),
+            }),
+            Box::new(MockManifestStore {
+                partitions: vec![],
+                call_count: Arc::new(Mutex::new(0)),
+            }),
+            Box::new(MockParquetReader {
+                bars: vec![],
+                call_count: Arc::new(Mutex::new(0)),
+                should_fail: false,
+            }),
+            ParquetWriter::new(archive_config),
+            Box::new(FailingProvider {
+                call_count: provider_call_count.clone(),
+            }),
+        );
+
+        let result = repo
+            .load_bars_range("akshare", "SSE", "000001", "1d", start, end)
+            .await
+            .unwrap();
+
+        // Verify: returns hot data only, provider was attempted but failed gracefully
+        assert_eq!(result.len(), 1, "Should return only hot data when provider fails");
+        assert!(*provider_call_count.lock().unwrap() > 0, "Provider should be attempted");
     }
 }
