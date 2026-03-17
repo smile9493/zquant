@@ -1,0 +1,21 @@
+[package]
+name = "repository-market"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+infra-parquet = { path = "../infra-parquet" }
+store-manifest = { path = "../store-manifest" }
+data-pipeline-domain = { path = "../data-pipeline-domain" }
+
+anyhow.workspace = true
+chrono.workspace = true
+sqlx.workspace = true
+tracing.workspace = true
+async-trait.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }

@@ -3,7 +3,7 @@
   "name": "03-17-m3-storage-layering-parquet",
   "title": "M3 存储分层闭环（PostgreSQL+Parquet）",
   "description": "",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": null,
   "scope": null,
   "priority": "P2",

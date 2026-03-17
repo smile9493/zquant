@@ -1,0 +1,23 @@
+[package]
+name = "infra-parquet"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+anyhow.workspace = true
+chrono.workspace = true
+serde = { workspace = true }
+serde_json.workspace = true
+tracing.workspace = true
+tokio = { workspace = true, features = ["fs"] }
+
+# Parquet support
+parquet = "53"
+arrow = "53"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util", "macros"] }
+tempfile = "3"
