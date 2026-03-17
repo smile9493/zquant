@@ -852,3 +852,73 @@ Turn failures from "abort" into "recoverable/degradable". Define error classific
 - [x] Tests: retry succeeds after transient, permanent not retried, exhaustion behavior
 
 ### Result: PASS
+
+
+---
+
+## T5 Final Review (M3 Test & Review Gate)
+
+### Checks Run
+- cargo test -p repository-market -p infra-parquet -p store-manifest: 36/36 PASS
+- cargo check --workspace: PASS
+- No runtime unwrap/expect/panic in production code
+- getDiagnostics: no issues
+
+### Test Coverage Matrix (36 total)
+
+#### infra-parquet (9 tests)
+- Partition key/path: creation, build, roundtrip, parse_invalid (4)
+- Writer: write success, write empty fails (2)
+- Reader: read success, read_range filter (2)
+- Config: archive_config tmp path (1)
+
+#### repository-market (26 tests)
+- Gap calculation: empty bars, prefix gap, suffix gap, no gaps (4)
+- Merge/dedup: removes duplicates, sorts by timestamp (2)
+- Error classification: timeout, rate_limit, connection_refused -> Transient; corrupt -> DataCorruption; unknown -> Permanent (5)
+- Retry: config default, delay capped, succeeds after transient, permanent not retried, exhausts all attempts (5)
+- Integration - layered read:
+  - No gap -> hot only, Parquet not queried (1)
+  - Gap -> Parquet fills, merged (1)
+  - Empty manifest -> hot only (1)
+  - Parquet read failure -> graceful degradation (1)
+  - Remote backfill -> provider fills, writer persists (1)
+  - Remote backfill idempotent -> no provider call when no gaps (1)
+  - Remote provider failure -> graceful degradation (1)
+  - Full three-layer integration: hot + Parquet + remote (1)
+  - Transient provider retried then succeeds (1)
+  - Hot store writer failure -> remote data still returned (1)
+
+#### store-manifest (1 test)
+- partition_record_to_key (1)
+
+### M3 Acceptance Criteria Summary
+
+T1 (Repository Layered Read):
+- [x] load_bars_range with hot -> Parquet -> merge strategy
+- [x] Hot data complete -> no Parquet query
+- [x] Hot data incomplete -> auto-fill from Parquet
+
+T2 (Gap Calculation & Parquet Hit):
+- [x] Gap calculator: prefix/suffix gaps (middle gap deferred per scope adjustment)
+- [x] Parquet reads only manifest-declared partitions
+- [x] Empty partition / missing file -> observable warning, no abort
+
+T3 (Remote Gap Backfill):
+- [x] Remaining gaps -> provider fetch -> hot store writeback
+- [x] Same request returns filled data
+- [x] Idempotent: no duplicates on repeat execution
+
+T4 (Error Handling & Retry):
+- [x] ErrorKind: Transient / Permanent / DataCorruption
+- [x] Exponential backoff retry (configurable, bounded)
+- [x] Only transient errors retried
+- [x] No panic!/expect/process::exit in production code
+- [x] Retry behavior logged with structured fields
+
+T5 (Test & Review Gate):
+- [x] Unit tests: gap calc, merge/dedup, error classification, retry
+- [x] Integration tests: three-layer read, failure injection, retry integration
+- [x] All checks passing
+
+### M3 Final Result: PASS
