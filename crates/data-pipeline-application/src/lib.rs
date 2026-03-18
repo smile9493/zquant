@@ -17,6 +17,7 @@ pub use persist::{FilePersistWriter, InMemoryPersistWriter};
 pub use provider_registry::ProviderRegistry;
 pub use providers::MockProvider;
 pub use providers::AkshareProvider;
+pub use providers::PytdxProvider;
 pub use python_runner::PythonRunner;
 pub use quality_gate::BasicQualityGate;
 pub use route_resolver::PriorityRouteResolver;

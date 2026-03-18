@@ -1175,3 +1175,257 @@ async fn test_catalog_idempotency() {
     assert_eq!(catalog_files.len(), 1, "Should have exactly one catalog file (latest pointer)");
 }
 
+
+
+// ============================================================================
+// Phase D: PyTDX Provider Hermetic Tests
+// ============================================================================
+
+mod pytdx_tests {
+    use super::*;
+    use data_pipeline_application::{PytdxProvider, PythonRunner};
+    use data_pipeline_application::route_resolver::RouteResolver;
+    use data_pipeline_domain::DataProvider;
+    use std::path::Path;
+
+    struct FakePythonRunner {
+        response: serde_json::Value,
+    }
+
+    #[async_trait::async_trait]
+    impl PythonRunner for FakePythonRunner {
+        async fn run_json(
+            &self,
+            _script_path: &Path,
+            _input: serde_json::Value,
+        ) -> anyhow::Result<serde_json::Value> {
+            Ok(self.response.clone())
+        }
+    }
+
+    struct FakeErrorPythonRunner {
+        error_message: String,
+    }
+
+    #[async_trait::async_trait]
+    impl PythonRunner for FakeErrorPythonRunner {
+        async fn run_json(
+            &self,
+            _script_path: &Path,
+            _input: serde_json::Value,
+        ) -> anyhow::Result<serde_json::Value> {
+            Err(anyhow::anyhow!("{}", self.error_message))
+        }
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_provider_routability() {
+        let fake_runner = Arc::new(FakePythonRunner {
+            response: serde_json::json!({"status": "success", "data": []}),
+        });
+
+        let provider = Arc::new(PytdxProvider::new(fake_runner));
+        let mut registry = ProviderRegistry::new();
+        registry.register(provider.clone());
+
+        let candidates = registry.find_providers(Capability::Ohlcv, Market::CnEquity);
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0].provider_name(), "pytdx");
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_provider_priority_below_akshare() {
+        let fake_runner_ak = Arc::new(FakePythonRunner {
+            response: serde_json::json!({"status": "success", "data": []}),
+        });
+        let fake_runner_tdx = Arc::new(FakePythonRunner {
+            response: serde_json::json!({"status": "success", "data": []}),
+        });
+
+        let ak = Arc::new(data_pipeline_application::AkshareProvider::new(fake_runner_ak));
+        let tdx = Arc::new(PytdxProvider::new(fake_runner_tdx));
+
+        let mut registry = ProviderRegistry::new();
+        registry.register(ak.clone());
+        registry.register(tdx.clone());
+
+        let candidates = registry.find_providers(Capability::Ohlcv, Market::CnEquity);
+        assert_eq!(candidates.len(), 2);
+        // AkShare priority=50 > PyTDX priority=40, so AkShare should be first
+        assert_eq!(candidates[0].provider_name(), "akshare");
+        assert_eq!(candidates[1].provider_name(), "pytdx");
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_fetch_dataset_success() {
+        let fake_runner = Arc::new(FakePythonRunner {
+            response: serde_json::json!({
+                "status": "success",
+                "data": [
+                    {
+                        "date": "2024-01-02",
+                        "open": 9.50,
+                        "high": 9.80,
+                        "low": 9.40,
+                        "close": 9.70,
+                        "volume": 500000.0
+                    }
+                ]
+            }),
+        });
+
+        let provider = PytdxProvider::new(fake_runner);
+        let req = DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+            symbol_scope: vec!["600000".to_string()],
+            time_range: None,
+            forced_provider: Some("pytdx".to_string()),
+        };
+
+        let result = provider.fetch_dataset(req).await;
+        assert!(result.is_ok(), "fetch_dataset should succeed: {:?}", result.err());
+
+        let raw = result.unwrap();
+        let data = raw.content.get("data").expect("missing data field");
+        assert!(data.is_array());
+        assert_eq!(data.as_array().unwrap().len(), 1);
+
+        let rec = &data.as_array().unwrap()[0];
+        assert!(rec.get("date").is_some());
+        assert!(rec.get("open").is_some());
+        assert!(rec.get("high").is_some());
+        assert!(rec.get("low").is_some());
+        assert!(rec.get("close").is_some());
+        assert!(rec.get("volume").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_wrong_dataset_id_rejected() {
+        let fake_runner = Arc::new(FakePythonRunner {
+            response: serde_json::json!({"status": "success", "data": []}),
+        });
+
+        let provider = PytdxProvider::new(fake_runner);
+        let req = DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("wrong_dataset_id".to_string()),
+            symbol_scope: vec!["600000".to_string()],
+            time_range: None,
+            forced_provider: None,
+        };
+
+        let result = provider.fetch_dataset(req).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("unsupported dataset_id"));
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_missing_symbol_error() {
+        let fake_runner = Arc::new(FakePythonRunner {
+            response: serde_json::json!({"status": "success", "data": []}),
+        });
+
+        let provider = PytdxProvider::new(fake_runner);
+        let req = DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+            symbol_scope: vec![],
+            time_range: None,
+            forced_provider: None,
+        };
+
+        let result = provider.fetch_dataset(req).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("missing required symbol_scope"));
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_forced_provider_fail_closed() {
+        let mut registry = ProviderRegistry::new();
+        registry.register(Arc::new(MockProvider::new()));
+
+        let resolver = PriorityRouteResolver::new();
+        let req = DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::UsEquity,
+            dataset_id: None,
+            symbol_scope: vec!["TEST".to_string()],
+            time_range: None,
+            forced_provider: Some("pytdx".to_string()),
+        };
+
+        let candidates = registry.find_providers(req.capability, req.market);
+        let result = resolver.resolve(&req, candidates).await;
+
+        assert!(result.is_err());
+        let err_msg = result.err().unwrap().to_string();
+        assert!(err_msg.contains("not available"));
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_error_message_propagation() {
+        let fake_runner = Arc::new(FakeErrorPythonRunner {
+            error_message: "no data returned for 430047 (BJ)".to_string(),
+        });
+
+        let provider = PytdxProvider::new(fake_runner);
+        let req = DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+            symbol_scope: vec!["430047".to_string()],
+            time_range: None,
+            forced_provider: None,
+        };
+
+        let result = provider.fetch_dataset(req).await;
+        assert!(result.is_err());
+
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("430047"), "error should contain symbol");
+        assert!(err_msg.contains("BJ"), "error should contain exchange label");
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_multiple_symbols_rejected() {
+        let fake_runner = Arc::new(FakePythonRunner {
+            response: serde_json::json!({"status": "success", "data": []}),
+        });
+
+        let provider = PytdxProvider::new(fake_runner);
+        let req = DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+            symbol_scope: vec!["600000".to_string(), "000001".to_string()],
+            time_range: None,
+            forced_provider: None,
+        };
+
+        let result = provider.fetch_dataset(req).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("exactly 1 symbol"));
+    }
+
+    #[tokio::test]
+    async fn test_pytdx_generic_fetch_not_supported() {
+        let fake_runner = Arc::new(FakePythonRunner {
+            response: serde_json::json!({"status": "success", "data": []}),
+        });
+
+        let provider = PytdxProvider::new(fake_runner);
+        let req = data_pipeline_domain::FetchRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            params: serde_json::json!({"symbol": "600000"}),
+        };
+
+        let result = provider.fetch(req).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("does not support generic fetch"));
+    }
+}
