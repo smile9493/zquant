@@ -8,3 +8,8 @@
    - 隐式状态写入
    - 不受控并发
    - 不可解释 SQL
+
+## 必读文档
+
+- [跨层思考指南](./cross-layer-thinking-guide.md)
+- Desktop 场景请同时阅读：`../desktop/architecture-boundaries.md`

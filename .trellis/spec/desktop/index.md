@@ -14,6 +14,7 @@
 
 | 规范 | 说明 | 状态 |
 |------|------|------|
+| [架构硬边界](./architecture-boundaries.md) | `egui-first` + `Bevy runtime` 的不可违反分层规则 | 已建立 |
 | [App Shell 规范](./app-shell-guidelines.md) | `egui` 主壳、布局与交互边界 | 已建立 |
 | [Bevy 渲染集成规范](./renderer-bevy-guidelines.md) | 中心画布、离屏渲染与状态同步 | 已建立 |
 | [Workspace 状态规范](./workspace-state-guidelines.md) | 命令/Reducer/Snapshot 与恢复策略 | 已建立 |
@@ -26,7 +27,7 @@
 
 开始任何桌面开发前至少完成：
 
-- [ ] 阅读本索引与对应主题规范
+- [ ] 阅读本索引与 [架构硬边界](./architecture-boundaries.md)
 - [ ] 明确本次变更属于哪个阶段（M1/M2/M3/M4）
 - [ ] 明确是否影响跨层契约（UI ↔ Application ↔ Storage ↔ Render）
 - [ ] 若涉及存储或接口变更，补充到任务 PRD 的“契约与回滚”部分

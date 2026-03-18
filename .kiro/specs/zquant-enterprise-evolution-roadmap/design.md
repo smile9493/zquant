@@ -94,11 +94,13 @@ graph TB
     end
     
     Desktop --> Shell
-    Desktop --> Workbench
-    Desktop --> Bevy
+    Shell --> Workbench
+    Shell --> Bevy
+    Workbench --> Shell
+    Bevy --> Shell
     Shell --> AppCore
-    Workbench --> AppCore
-    Bevy --> AppCore
+    AppCore --> Workbench
+    AppCore --> Bevy
     AppCore --> JobsRuntime
     AppCore --> Workspace
     AppCore --> Domain
@@ -127,6 +129,51 @@ graph TB
 | 存储架构 | PostgreSQL + Redis + Kafka | PostgreSQL + Parquet |
 | 部署方式 | 多进程服务 | 单一桌面进程 |
 | 扩展性 | 水平扩展服务 | 本地单机优先 |
+
+### 架构硬边界（不可违反）
+
+> 本节约束为实现期强制规则，优先级高于插件默认行为。
+
+1. **core/domain 纯净性**
+   - `core/domain` 只承载业务模型、用例、状态机、命令、事件、校验规则。
+   - 禁止依赖 `egui`、`bevy`、`bevy_ecs`、`wgpu`。
+
+2. **契约通信，禁止直连**
+   - `UI -> Core`：`Command`
+   - `Core -> UI`：`ViewModel / DTO`
+   - `Core -> Renderer`：`RenderScene / RenderCommand`
+   - `Renderer -> Core/UI`：`RenderEvent / PickingResult / FrameStats`
+   - 禁止 `ui-egui <-> renderer-bevy` 直接双向依赖或共享可变内部状态。
+
+3. **egui 主界面编排**
+   - 主界面结构（导航、菜单、Dock/Tab、日志、设置、弹窗）由 `egui` 决定。
+   - `renderer-bevy` 仅负责渲染面板内容，不负责主应用界面编排。
+
+4. **默认插件行为不等于产品架构**
+   - 不以 `bevy_ui` 作为主业务 UI 框架。
+   - 不把 `bevy_egui` 当纯调试 overlay 使用。
+   - 不让默认 render graph 顺序决定产品分层。
+   - 不把 ECS 当业务数据库。
+
+5. **输入路由权归 app-shell**
+   - 输入焦点、滚轮、拖拽、快捷键冲突统一由 `app-shell` 裁决后分发。
+   - `ui-workbench` 与 `renderer-bevy` 仅消费路由后的输入。
+
+### 依赖方向与状态分治
+
+推荐依赖方向：
+
+```text
+ui_egui ------\
+               -> app_shell -> core/domain -> infra_*
+renderer_bevy -/
+```
+
+状态归属：
+- 业务真状态：`core/domain`（项目、策略参数、数据源配置、任务状态、回测条件）
+- 渲染派生状态：`renderer-bevy`（相机、GPU 高亮、帧统计、picking/hover、纹理句柄）
+
+禁止将业务真状态挂入 ECS Resource 作为权威来源。
 
 ## 主要工作流程
 
@@ -161,26 +208,32 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant Workbench as ui-workbench
+    participant Shell as app-shell
     participant Bevy as renderer-bevy
     participant AppCore as application-core
     participant Market as domain-market
     participant Storage as infra-storage
     
     User->>Workbench: 选择 symbol + timeframe
-    Workbench->>AppCore: Command::LoadChart
+    Workbench->>Shell: Command::LoadChart
+    Shell->>AppCore: 转发 Command::LoadChart
     AppCore->>Market: 查询 OHLCV 数据
     Market->>Storage: 读取数据
     Storage-->>Market: Candle 数据
     Market-->>AppCore: Dataset
-    AppCore->>Bevy: 更新渲染数据
+    AppCore->>Shell: RenderScene
+    Shell->>Bevy: 下发 RenderScene
     Bevy->>Bevy: 生成离屏纹理
-    Bevy-->>Workbench: 纹理句柄
+    Bevy-->>Shell: RenderEvent(TextureReady)
+    Shell-->>Workbench: ViewModel + 纹理句柄
     Workbench-->>User: 显示图表
     
     User->>Workbench: 缩放/平移
-    Workbench->>Bevy: 更新视图参数
+    Workbench->>Shell: InteractionCommand
+    Shell->>Bevy: 路由交互输入
     Bevy->>Bevy: 重新渲染
-    Bevy-->>Workbench: 更新纹理
+    Bevy-->>Shell: RenderEvent(FrameUpdated)
+    Shell-->>Workbench: 更新纹理
     Workbench-->>User: 更新显示
 ```
 
@@ -225,18 +278,22 @@ sequenceDiagram
 sequenceDiagram
     participant User
     participant Workbench as ui-workbench
+    participant Shell as app-shell
     participant AppCore as application-core
     participant JobsRuntime as jobs-runtime
     participant PG as infra-postgres
     participant Logging as infra-logging
     
     User->>Workbench: 触发刷新任务
-    Workbench->>AppCore: Command::RefreshData
+    Workbench->>Shell: Command::RefreshData
+    Shell->>AppCore: 转发 Command::RefreshData
     AppCore->>JobsRuntime: 创建任务
     JobsRuntime->>PG: 插入 job_runs
     PG-->>JobsRuntime: job_id
     JobsRuntime->>JobsRuntime: 异步执行
-    JobsRuntime-->>Workbench: 任务已创建
+    JobsRuntime-->>AppCore: JobCreated
+    AppCore-->>Shell: JobViewModelUpdated
+    Shell-->>Workbench: 任务已创建
     Workbench-->>User: 显示任务状态
     
     JobsRuntime->>Logging: 记录开始
@@ -301,15 +358,22 @@ END PROCEDURE
 
 #### app-shell
 
-**职责**：egui 应用壳，管理窗口、菜单、工具栏
+**职责**：egui 应用壳与应用协调层，负责窗口、菜单、工具栏、输入路由和跨层编排
+
+**硬边界**：
+- 统一输入路由与冲突裁决（UI 表单 vs 渲染视口）
+- 统一转发 `Command / DTO / Event`，禁止 UI 与渲染器直连
+- 不保存业务权威状态，只维护壳层临时状态与路由上下文
 
 **接口**：
 
 ```pascal
 STRUCTURE AppShell
   window: Window
-  state: AppState
-  command_bus: CommandBus
+  shell_state: ShellState
+  input_router: InputRouter
+  app_core: ApplicationCorePort
+  renderer: RendererPort
   workbench: Workbench
 END STRUCTURE
 
@@ -319,11 +383,13 @@ PROCEDURE new(config, runtime)
   
   SEQUENCE
     window ← createWindow(config.window_config)
-    state ← AppState.load_or_default()
-    command_bus ← CommandBus.new()
-    workbench ← Workbench.new(command_bus)
+    shell_state ← ShellState.load_or_default()
+    input_router ← InputRouter.new()
+    app_core ← ApplicationCorePort.new(runtime)
+    renderer ← RendererPort.new()
+    workbench ← Workbench.new()
     
-    RETURN AppShell { window, state, command_bus, workbench }
+    RETURN AppShell { window, shell_state, input_router, app_core, renderer, workbench }
   END SEQUENCE
 END PROCEDURE
 
@@ -335,11 +401,21 @@ PROCEDURE update()
     events ← self.window.poll_events()
     
     FOR EACH event IN events DO
-      self.handle_event(event)
+      routed ← self.input_router.route(event, self.workbench.focus_state())
+      self.dispatch_routed_input(routed)
     END FOR
     
-    self.command_bus.process_commands()
-    self.workbench.update(self.state)
+    ui_commands ← self.workbench.drain_commands()
+    self.app_core.execute_batch(ui_commands)
+    
+    vm ← self.app_core.pull_view_model()
+    self.workbench.update(vm)
+    
+    render_scene ← self.app_core.pull_render_scene()
+    self.renderer.apply_render_scene(render_scene)
+    
+    render_events ← self.renderer.drain_events()
+    self.app_core.handle_render_events(render_events)
   END SEQUENCE
 END PROCEDURE
 
@@ -361,16 +437,22 @@ END PROCEDURE
 
 **职责**：工作台布局管理，包含侧边栏、中心画布、右侧面板、底部面板
 
+**硬边界**：
+- 只消费 `ViewModel/DTO` 并产出 `Command`
+- 不直接访问 `ApplicationCore` 内部状态
+- 不直接访问 `renderer-bevy` world/resource
+
 **接口**：
 
 ```pascal
 STRUCTURE Workbench
   layout: WorkbenchLayout
+  vm: MainWorkspaceVm
   sidebar: Sidebar
   center_canvas: CenterCanvas
   right_dock: RightDock
   bottom_dock: BottomDock
-  command_bus: CommandBus
+  pending_commands: List<Command>
 END STRUCTURE
 
 STRUCTURE WorkbenchLayout
@@ -400,6 +482,19 @@ PROCEDURE render()
     IF self.layout.bottom_dock_visible THEN
       self.bottom_dock.render()
     END IF
+    
+    self.pending_commands.append(self.collect_user_commands())
+  END SEQUENCE
+END PROCEDURE
+
+PROCEDURE drain_commands()
+  INPUT: self
+  OUTPUT: List<Command>
+  
+  SEQUENCE
+    commands ← self.pending_commands
+    self.pending_commands ← []
+    RETURN commands
   END SEQUENCE
 END PROCEDURE
 ```
@@ -410,20 +505,26 @@ END PROCEDURE
 
 **职责**：Bevy 渲染引擎集成，负责中心画布的高频图形渲染
 
+**硬边界**：
+- 只维护渲染派生状态（相机、hover/picking、纹理句柄、帧统计）
+- 不承载业务用例，不访问数据库/网络，不作为业务权威状态
+- 只接收 `RenderScene/RenderCommand`，只回传 `RenderEvent`
+
 **接口**：
 
 ```pascal
 STRUCTURE BevyRenderer
   bevy_app: BevyApp
   render_target: RenderTarget
-  chart_state: ChartState
+  render_state: RenderState
+  pending_events: List<RenderEvent>
 END STRUCTURE
 
-STRUCTURE ChartState
-  dataset: Dataset
-  viewport: Viewport
-  overlays: List<Overlay>
-  cursor_position: Option<Position>
+STRUCTURE RenderState
+  scene: RenderScene
+  camera: CameraState
+  hover: Option<PickingResult>
+  frame_stats: FrameStats
 END STRUCTURE
 
 STRUCTURE Viewport
@@ -439,19 +540,19 @@ PROCEDURE new()
   SEQUENCE
     bevy_app ← createBevyApp()
     render_target ← createOffscreenTarget()
-    chart_state ← ChartState.default()
+    render_state ← RenderState.default()
+    pending_events ← []
     
-    RETURN BevyRenderer { bevy_app, render_target, chart_state }
+    RETURN BevyRenderer { bevy_app, render_target, render_state, pending_events }
   END SEQUENCE
 END PROCEDURE
 
-PROCEDURE update_dataset(dataset)
-  INPUT: self, dataset: Dataset
+PROCEDURE apply_render_scene(scene)
+  INPUT: self, scene: RenderScene
   OUTPUT: ()
   
   SEQUENCE
-    self.chart_state.dataset ← dataset
-    self.chart_state.viewport ← calculateViewport(dataset)
+    self.render_state.scene ← scene
     self.mark_dirty()
   END SEQUENCE
 END PROCEDURE
@@ -482,6 +583,19 @@ PROCEDURE handle_interaction(event)
       | Pan(offset) → self.pan(offset)
       | CursorMove(pos) → self.update_cursor(pos)
     END MATCH
+    
+    self.pending_events.append(self.build_render_event())
+  END SEQUENCE
+END PROCEDURE
+
+PROCEDURE drain_events()
+  INPUT: self
+  OUTPUT: List<RenderEvent>
+  
+  SEQUENCE
+    events ← self.pending_events
+    self.pending_events ← []
+    RETURN events
   END SEQUENCE
 END PROCEDURE
 ```
@@ -508,7 +622,7 @@ STRUCTURE AppState
   current_symbol: Option<Symbol>
   current_timeframe: Option<Timeframe>
   viewport: Viewport
-  ui_state: UIState
+  workspace_state: WorkspaceState
 END STRUCTURE
 
 PROCEDURE execute_command(command)

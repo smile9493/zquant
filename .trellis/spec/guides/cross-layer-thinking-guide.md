@@ -1,94 +1,91 @@
-# Cross-Layer Thinking Guide
+# 跨层思考指南
 
-> **Purpose**: Think through data flow across layers before implementing.
-
----
-
-## The Problem
-
-**Most bugs happen at layer boundaries**, not within layers.
-
-Common cross-layer bugs:
-- API returns format A, frontend expects format B
-- Database stores X, service transforms to Y, but loses data
-- Multiple layers implement the same logic differently
+> 目的：在实现前先锁定跨层数据流、契约和边界，减少“层间漂移”导致的返工。
 
 ---
 
-## Before Implementing Cross-Layer Features
+## 核心风险
 
-### Step 1: Map the Data Flow
+多数线上问题并不出在单层实现，而出在层与层之间：
+- A 层输出格式与 B 层预期不一致
+- 中间层转换丢字段或改变语义
+- 同一规则在多层重复实现并逐步分叉
 
-Draw out how data moves:
+---
 
-```
-Source → Transform → Store → Retrieve → Transform → Display
+## 实现前 3 步
+
+### 第一步：画完整数据流
+
+先写清楚：
+
+```text
+Source -> Transform -> Store -> Retrieve -> Transform -> Display
 ```
 
-For each arrow, ask:
-- What format is the data in?
-- What could go wrong?
-- Who is responsible for validation?
+对每个箭头回答：
+- 输入/输出格式是什么？
+- 谁负责校验？
+- 失败时如何回传错误？
 
-### Step 2: Identify Boundaries
+### 第二步：标注边界
 
-| Boundary | Common Issues |
-|----------|---------------|
-| API ↔ Service | Type mismatches, missing fields |
-| Service ↔ Database | Format conversions, null handling |
-| Backend ↔ Frontend | Serialization, date formats |
-| Component ↔ Component | Props shape changes |
+| 边界 | 常见问题 |
+|------|----------|
+| API ↔ Service | 字段缺失、类型不匹配 |
+| Service ↔ Storage | 空值处理、格式转换、事务边界 |
+| Core ↔ UI | DTO 漂移、状态重复维护 |
+| Core ↔ Renderer | 快照不一致、事件语义不稳定 |
 
-### Step 3: Define Contracts
+### 第三步：先定契约再写代码
 
-For each boundary:
-- What is the exact input format?
-- What is the exact output format?
-- What errors can occur?
-
----
-
-## Common Cross-Layer Mistakes
-
-### Mistake 1: Implicit Format Assumptions
-
-**Bad**: Assuming date format without checking
-
-**Good**: Explicit format conversion at boundaries
-
-### Mistake 2: Scattered Validation
-
-**Bad**: Validating the same thing in multiple layers
-
-**Good**: Validate once at the entry point
-
-### Mistake 3: Leaky Abstractions
-
-**Bad**: Component knows about database schema
-
-**Good**: Each layer only knows its neighbors
+每条边界必须明确：
+- 精确输入格式
+- 精确输出格式
+- 错误类型与恢复策略
+- 所有权与状态写入责任
 
 ---
 
-## Checklist for Cross-Layer Features
+## Desktop 专项硬约束（必须同时满足）
 
-Before implementation:
-- [ ] Mapped the complete data flow
-- [ ] Identified all layer boundaries
-- [ ] Defined format at each boundary
-- [ ] Decided where validation happens
+引用：`.trellis/spec/desktop/architecture-boundaries.md`
 
-After implementation:
-- [ ] Tested with edge cases (null, empty, invalid)
-- [ ] Verified error handling at each boundary
-- [ ] Checked data survives round-trip
+- `UI -> Core: Command`
+- `Core -> UI: ViewModel/DTO`
+- `Core -> Renderer: RenderScene/RenderCommand`
+- `Renderer -> Core/UI: RenderEvent/PickingResult/FrameStats`
+
+禁止：
+- `ui-egui <-> renderer-bevy` 直连
+- 将 ECS 作为业务权威状态
+- 绕过 `app_shell` 直接处理输入冲突
 
 ---
 
-## When to Create Flow Documentation
+## 常见反模式
 
-Create detailed flow docs when:
-- Feature spans 3+ layers
-- Multiple teams are involved
-- Data format is complex
-- Feature has caused bugs before
+1. **隐式格式假设**
+   - 反例：默认时间格式一致，不做边界转换
+2. **校验散落**
+   - 反例：UI、应用层、存储层重复做同一校验且规则不一致
+3. **抽象泄漏**
+   - 反例：UI 组件知道数据库字段结构；渲染层知道业务聚合细节
+4. **状态错层**
+   - 反例：把业务真状态塞进渲染资源，把临时 hover 结果写回领域模型
+
+---
+
+## 跨层检查清单
+
+实现前：
+- [ ] 已画完整数据流并标注责任层
+- [ ] 已定义每个边界的输入/输出/错误契约
+- [ ] 已确认状态归属（业务真状态 vs 渲染派生状态）
+- [ ] 已确认输入路由由 `app_shell` 统一裁决
+
+实现后：
+- [ ] 空值/错误/并发冲突路径已覆盖测试
+- [ ] 数据可往返（round-trip）且语义不丢失
+- [ ] 无跨层直连与隐式共享可变状态
+- [ ] 文档与实现保持一致（任务 PRD 已回写）
