@@ -37,7 +37,28 @@ fn main() -> Result<()> {
         info!("No DATABASE_URL set, running in UI-only mode");
     }
 
-    // Run the app shell
+    // --- Startup self-check orchestration ---
+    // Run health checks early so we can log structured results before UI starts.
+    // The actual checks + strategy + notification wiring happens inside app_shell,
+    // but we perform a pre-flight path resolution check here at the binary level
+    // to catch catastrophic env issues before any heavy initialization.
+    match app_shell::health::resolve_runtime_paths() {
+        Ok(paths) => {
+            info!(
+                config = %paths.config_dir.display(),
+                logs = %paths.log_dir.display(),
+                parquet = %paths.parquet_dir.display(),
+                tmp = %paths.tmp_dir.display(),
+                "Runtime paths resolved"
+            );
+        }
+        Err(e) => {
+            // Log but do NOT exit — app_shell will handle degraded startup.
+            error!(error = %e, "Runtime path resolution failed at pre-flight check");
+        }
+    }
+
+    // Run the app shell (health checks, recovery, notifications all handled inside)
     match app_shell::run_with_config(database_url) {
         Ok(()) => {
             info!("Desktop application shutdown complete");

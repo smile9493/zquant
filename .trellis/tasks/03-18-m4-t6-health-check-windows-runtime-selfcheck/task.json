@@ -1,0 +1,44 @@
+{
+  "id": "m4-t6-health-check-windows-runtime-selfcheck",
+  "name": "m4-t6-health-check-windows-runtime-selfcheck",
+  "title": "M4-T6 健康检查与 Windows 运行自检闭环",
+  "description": "落实 M4 剩余发布准备能力：健康检查、Windows 路径规范、启动自检与错误恢复最小闭环。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-18",
+  "completedAt": "2026-03-18",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

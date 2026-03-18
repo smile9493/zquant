@@ -2,6 +2,8 @@ use eframe::egui;
 use tracing::{info, debug, warn, error};
 use ui_workbench::{Workbench, WorkbenchCommand};
 use application_core::ApplicationFacade;
+use crate::health::{HealthReport, CheckSeverity};
+use crate::notification::StartupNotification;
 use std::sync::Arc;
 
 /// Main application state
@@ -10,10 +12,20 @@ pub struct ZQuantApp {
     facade: Option<Arc<ApplicationFacade>>,
     /// None when runtime creation failed; app degrades to UI-only mode.
     runtime: Option<tokio::runtime::Runtime>,
+    health_report: HealthReport,
+    /// User-facing startup notifications (non-Ok checks).
+    startup_notifications: Vec<StartupNotification>,
+    /// Whether the notification panel is visible.
+    show_notifications: bool,
 }
 
 impl ZQuantApp {
-    pub fn new(cc: &eframe::CreationContext<'_>, facade: Option<Arc<ApplicationFacade>>) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        facade: Option<Arc<ApplicationFacade>>,
+        health_report: HealthReport,
+        startup_notifications: Vec<StartupNotification>,
+    ) -> Self {
         info!("Initializing ZQuantApp");
 
         // Load Chinese font from Windows system fonts
@@ -61,10 +73,15 @@ impl ZQuantApp {
             }
         }
 
+        let show_notifications = !startup_notifications.is_empty();
+
         Self {
             workbench,
             facade,
             runtime,
+            health_report,
+            startup_notifications,
+            show_notifications,
         }
     }
 
@@ -158,6 +175,69 @@ impl eframe::App for ZQuantApp {
             self.handle_command(cmd);
         }
         self.workbench.show(ctx);
+
+        // Notification panel — shows actionable fix suggestions from startup checks
+        if self.show_notifications && !self.startup_notifications.is_empty() {
+            egui::TopBottomPanel::top("startup_notifications")
+                .max_height(150.0)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("启动检查提示");
+                        if ui.small_button("关闭").clicked() {
+                            self.show_notifications = false;
+                        }
+                    });
+                    ui.separator();
+                    egui::ScrollArea::vertical().show(ui, |ui| {
+                        for n in &self.startup_notifications {
+                            let color = match n.severity {
+                                CheckSeverity::Error => egui::Color32::from_rgb(220, 50, 50),
+                                CheckSeverity::Warn => egui::Color32::from_rgb(220, 180, 0),
+                                CheckSeverity::Ok => egui::Color32::from_rgb(80, 180, 80),
+                            };
+                            ui.horizontal_wrapped(|ui| {
+                                ui.colored_label(color, &n.title);
+                                ui.label(&n.suggestion);
+                            });
+                        }
+                    });
+                });
+        }
+
+        // Status bar at the very bottom — health summary
+        egui::TopBottomPanel::bottom("status_bar")
+            .max_height(20.0)
+            .show(ctx, |ui| {
+                ui.horizontal(|ui| {
+                    let err_count = self.health_report.count_by_severity(CheckSeverity::Error);
+                    let warn_count = self.health_report.count_by_severity(CheckSeverity::Warn);
+                    let ok_count = self.health_report.count_by_severity(CheckSeverity::Ok);
+
+                    if err_count > 0 {
+                        ui.colored_label(egui::Color32::from_rgb(220, 50, 50), format!("❌ {err_count} 错误"));
+                        ui.separator();
+                    }
+                    if warn_count > 0 {
+                        ui.colored_label(egui::Color32::from_rgb(220, 180, 0), format!("⚠ {warn_count} 警告"));
+                        ui.separator();
+                    }
+                    ui.label(format!("✅ {ok_count} 正常"));
+
+                    ui.separator();
+                    let db_status = if self.facade.is_some() { "DB: 已连接" } else { "DB: 离线" };
+                    ui.label(db_status);
+
+                    ui.separator();
+                    let task_count = if let (Some(rt), Some(facade)) = (&self.runtime, &self.facade) {
+                        let facade = facade.clone();
+                        let tasks = rt.block_on(facade.list_tasks());
+                        tasks.iter().filter(|t| !t.status.is_terminal()).count()
+                    } else {
+                        0
+                    };
+                    ui.label(format!("运行中任务: {task_count}"));
+                });
+            });
     }
 
     fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
