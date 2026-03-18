@@ -47,9 +47,55 @@
 ## Checklist
 - [x] 建立任务并设置为当前任务
 - [x] 写入 PRD（目标/范围/非目标/验收/风险/计划）
-- [ ] 更新 desktop/app-shell 规范
-- [ ] 更新 desktop/renderer-bevy 规范
-- [ ] 更新 desktop/workspace-state 规范
-- [ ] 更新 guides/cross-layer-thinking-guide
-- [ ] 执行 review gate 并写入结论
+- [x] 更新 desktop/app-shell 规范
+- [x] 更新 desktop/renderer-bevy 规范
+- [x] 更新 desktop/workspace-state 规范
+- [x] 更新 guides/cross-layer-thinking-guide
+- [x] 执行 review gate 并写入结论
 
+---
+
+## 实施结果（已完成）
+
+### 新增规范
+- `.trellis/spec/desktop/architecture-boundaries.md`
+  - 固化 5 条不可违反架构原则
+  - 固化 UI/Core/Renderer 契约方向
+  - 固化目录建议、依赖单向约束、状态分治与审查门禁
+
+### 已更新规范
+- `.trellis/spec/desktop/index.md`
+  - 将“架构硬边界”加入桌面规范清单并设为预开发必读
+- `.trellis/spec/desktop/app-shell-guidelines.md`
+  - 强化 `app_shell` 输入路由职责
+  - 明确 `egui` 主编排与跨层契约约束
+- `.trellis/spec/desktop/renderer-bevy-guidelines.md`
+  - 明确 `Bevy` 仅负责渲染子系统、禁止 `bevy_ui` 主业务化
+  - 明确 ECS 非业务数据库、状态分治规则
+- `.trellis/spec/desktop/workspace-state-guidelines.md`
+  - 增补“业务真状态 vs 渲染派生状态”与禁止事项
+- `.trellis/spec/guides/cross-layer-thinking-guide.md`
+  - 升级为中文跨层指南并加入 Desktop 专项硬约束
+- `.trellis/spec/guides/index.md`
+  - 增补必读入口，链接跨层指南与 desktop 硬边界
+
+---
+
+## Review Gate
+
+### 审查项
+- 规范一致性审查：检查 desktop 与 cross-layer 文档术语和边界是否一致。
+- 规则可检索性审查：检查关键约束词是否在目标文档中可检索。
+- Trellis 任务完整性审查：PRD 与 checklist 是否回写完整。
+
+### 执行检查
+- `python ./.trellis/scripts/task.py validate 03-19-03-19-architecture-hard-boundaries` ✅
+- `Select-String` 关键字检索（`core/domain`、`ui-egui <-> renderer-bevy`、`app_shell`、`Command`、`RenderScene`、`ECS`）✅
+
+### 验收结论
+- ✅ 5 条硬边界已写入规范并统一口径
+- ✅ UI/Core/Renderer 契约方向已固定
+- ✅ 依赖单向与直连禁令已写入
+- ✅ 业务真状态与渲染派生状态分治已写入
+
+**REVIEW: PASS**
