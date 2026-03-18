@@ -922,3 +922,19 @@ T5 (Test & Review Gate):
 - [x] All checks passing
 
 ### M3 Final Result: PASS
+
+## T5 AI 审查（2026-03-17，收口复核）
+
+### 本轮核验
+
+- ✅ `cargo test -p repository-market -p infra-parquet -p store-manifest`：36/36 通过  
+  （`infra-parquet` 9 + `repository-market` 26 + `store-manifest` 1）
+- ✅ `cargo check --workspace`：通过
+- ✅ 代码扫描：生产路径未发现 `panic!/expect/process::exit`
+
+### 审查结论
+
+- T5 要求的测试与 review gate 已满足，且与当前代码状态一致。
+- M3 文档中的 T1-T4/T5 验收闭环可追溯，未发现未处理的阻断 finding。
+
+**REVIEW: PASS**

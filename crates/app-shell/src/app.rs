@@ -118,8 +118,8 @@ impl ZQuantApp {
             WorkbenchCommand::RefreshData => {
                 runtime.spawn(async move {
                     match facade.refresh_data().await {
-                        Ok(_) => info!("Data refreshed"),
-                        Err(e) => warn!("Failed to refresh data: {}", e),
+                        Ok(task_id) => info!(task_id, "Refresh-data task submitted"),
+                        Err(e) => warn!("Failed to submit refresh-data task: {}", e),
                     }
                 });
             }
@@ -131,12 +131,29 @@ impl ZQuantApp {
                     }
                 });
             }
+            WorkbenchCommand::CancelTask(id) => {
+                runtime.spawn(async move {
+                    let cancelled = facade.cancel_task(id).await;
+                    if cancelled {
+                        info!(task_id = id, "Task cancelled via UI");
+                    } else {
+                        debug!(task_id = id, "Task cancel request ignored (already terminal)");
+                    }
+                });
+            }
         }
     }
 }
 
 impl eframe::App for ZQuantApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Sync task list from runtime to workbench each frame (in-memory, fast)
+        if let (Some(rt), Some(facade)) = (&self.runtime, &self.facade) {
+            let facade = facade.clone();
+            let tasks = rt.block_on(facade.list_tasks());
+            self.workbench.update_tasks(tasks);
+        }
+
         if let Some(cmd) = self.workbench.poll_command() {
             self.handle_command(cmd);
         }

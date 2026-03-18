@@ -213,6 +213,7 @@ dependencies = [
  "job-domain",
  "job-events",
  "job-store-pg",
+ "jobs-runtime",
  "serde",
  "serde_json",
  "sqlx",
@@ -3012,6 +3013,18 @@ dependencies = [
  "dotenvy",
  "job-events",
  "job-observability",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "jobs-runtime"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde",
+ "serde_json",
  "tokio",
  "tracing",
 ]
@@ -5853,6 +5866,7 @@ dependencies = [
  "application-core",
  "egui",
  "egui_plot",
+ "jobs-runtime",
  "serde",
  "serde_json",
  "tracing",

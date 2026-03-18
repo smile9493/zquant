@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 application-core = { path = "../application-core" }
+jobs-runtime = { path = "../jobs-runtime" }
 
 egui = "0.27"
 egui_plot = "0.27.2"

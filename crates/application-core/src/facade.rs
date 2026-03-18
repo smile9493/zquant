@@ -1,7 +1,9 @@
 use anyhow::Result;
 use domain_workspace::WorkspaceStore;
 use job_application::ApiState;
+use jobs_runtime::{TaskEntry, TaskId, TaskRuntime};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use tracing::{info, warn};
 
 /// Facade for desktop UI operations
@@ -10,11 +12,12 @@ pub struct ApplicationFacade {
     #[allow(dead_code)]
     state: ApiState,
     workspace_store: WorkspaceStore,
+    runtime: Arc<TaskRuntime>,
 }
 
 impl ApplicationFacade {
-    pub(crate) fn new(state: ApiState, workspace_store: WorkspaceStore) -> Self {
-        Self { state, workspace_store }
+    pub(crate) fn new(state: ApiState, workspace_store: WorkspaceStore, runtime: Arc<TaskRuntime>) -> Self {
+        Self { state, workspace_store, runtime }
     }
 
     /// Load chart data for a symbol
@@ -29,10 +32,30 @@ impl ApplicationFacade {
         })
     }
 
-    /// Refresh data for current workspace
-    pub async fn refresh_data(&self) -> Result<()> {
-        info!("Refreshing workspace data");
-        Ok(())
+    /// Refresh data for current workspace — submits an async task to the runtime.
+    pub async fn refresh_data(&self) -> Result<TaskId> {
+        info!("Submitting refresh-data task");
+        let handle = self.runtime.submit("refresh-data", |_cancel_rx| async {
+            // Placeholder: real data refresh logic in later milestones
+            info!("Refresh-data task executing");
+            Ok("Data refreshed".to_string())
+        }).await;
+        Ok(handle.id())
+    }
+
+    /// Cancel a running task by ID.
+    pub async fn cancel_task(&self, id: TaskId) -> bool {
+        self.runtime.cancel(id).await
+    }
+
+    /// Get a snapshot of all tasks.
+    pub async fn list_tasks(&self) -> Vec<TaskEntry> {
+        self.runtime.list_tasks().await
+    }
+
+    /// Drain pending task events (non-blocking).
+    pub async fn drain_task_events(&self) -> Vec<jobs_runtime::TaskEvent> {
+        self.runtime.drain_events().await
     }
 
     /// Save workspace snapshot to database

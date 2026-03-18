@@ -2,6 +2,7 @@ use anyhow::Result;
 use job_application::ApiState;
 use job_events::bus::{EventBus, InMemoryEventBus};
 use job_store_pg::JobStore;
+use jobs_runtime::TaskRuntime;
 use domain_workspace::WorkspaceStore;
 use std::sync::Arc;
 use tracing::info;
@@ -10,11 +11,13 @@ use sqlx::PgPool;
 mod facade;
 
 pub use facade::{ApplicationFacade, ChartData, WorkspaceSnapshot, LayoutState};
+pub use jobs_runtime::{TaskEntry, TaskEvent, TaskId, TaskStatus};
 
 /// Application core initialization
 pub struct ApplicationCore {
     state: ApiState,
     workspace_store: WorkspaceStore,
+    runtime: Arc<TaskRuntime>,
 }
 
 impl ApplicationCore {
@@ -36,13 +39,16 @@ impl ApplicationCore {
 
         let state = ApiState { store, bus };
 
+        // Initialize task runtime
+        let runtime = Arc::new(TaskRuntime::new());
+
         info!("Application core initialized");
-        Ok(Self { state, workspace_store })
+        Ok(Self { state, workspace_store, runtime })
     }
 
     /// Get facade for UI operations
     pub fn facade(&self) -> ApplicationFacade {
-        ApplicationFacade::new(self.state.clone(), self.workspace_store.clone())
+        ApplicationFacade::new(self.state.clone(), self.workspace_store.clone(), self.runtime.clone())
     }
 }
 

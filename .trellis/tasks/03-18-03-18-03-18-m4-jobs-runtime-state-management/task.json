@@ -1,0 +1,44 @@
+{
+  "id": "03-18-03-18-m4-jobs-runtime-state-management",
+  "name": "03-18-03-18-m4-jobs-runtime-state-management",
+  "title": "M4 任务执行与状态管理最小闭环",
+  "description": "基于企业版演进路线图，推进 M4：jobs-runtime 生命周期、任务面板、workspace 恢复与保存。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "priority": "P2",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-18",
+  "completedAt": "2026-03-18",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

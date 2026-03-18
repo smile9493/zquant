@@ -1,5 +1,6 @@
 use egui::{Context, CentralPanel, TopBottomPanel, SidePanel, Color32};
 use egui_plot::{Plot, Bar, BarChart, Line, PlotPoints};
+use jobs_runtime::{TaskEntry, TaskStatus};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 use application_core::WorkspaceSnapshot;
@@ -48,6 +49,7 @@ pub enum WorkbenchCommand {
     LoadChart { symbol: String, timeframe: String },
     RefreshData,
     SaveWorkspace(WorkspaceSnapshot),
+    CancelTask(jobs_runtime::TaskId),
 }
 
 /// Workbench manages the main UI layout and chart rendering
@@ -57,6 +59,7 @@ pub struct Workbench {
     current_symbol: String,
     current_timeframe: String,
     render_snapshot: Option<RenderSnapshot>,
+    task_entries: Vec<TaskEntry>,
 }
 
 impl Workbench {
@@ -75,6 +78,7 @@ impl Workbench {
             current_symbol: "AAPL".to_string(),
             current_timeframe: "1D".to_string(),
             render_snapshot: Some(snapshot),
+            task_entries: Vec::new(),
         }
     }
 
@@ -113,6 +117,11 @@ impl Workbench {
             "Render snapshot updated"
         );
         self.render_snapshot = Some(snapshot);
+    }
+
+    /// Update task entries for bottom panel display.
+    pub fn update_tasks(&mut self, entries: Vec<TaskEntry>) {
+        self.task_entries = entries;
     }
 
     /// Restore workbench state from a workspace snapshot
@@ -178,15 +187,54 @@ impl Workbench {
             });
         });
 
-        // Bottom dock
+        // Bottom dock — task panel
         if self.panel_state.bottom_visible {
-            TopBottomPanel::bottom("bottom_dock").show(ctx, |ui| {
-                ui.horizontal(|ui| {
-                    ui.label("底部面板");
+            TopBottomPanel::bottom("bottom_dock")
+                .min_height(80.0)
+                .show(ctx, |ui| {
+                    ui.horizontal(|ui| {
+                        ui.label("任务面板");
+                        ui.separator();
+                        ui.label(format!("共 {} 个任务", self.task_entries.len()));
+                    });
                     ui.separator();
-                    ui.label("日志 | 任务 | 终端");
+
+                    if self.task_entries.is_empty() {
+                        ui.label("暂无任务");
+                    } else {
+                        egui::ScrollArea::vertical()
+                            .max_height(120.0)
+                            .show(ui, |ui| {
+                                let mut cancel_ids = Vec::new();
+                                for entry in &self.task_entries {
+                                    ui.horizontal(|ui| {
+                                        let status_icon = match entry.status {
+                                            TaskStatus::Pending => "⏳",
+                                            TaskStatus::Running => "▶",
+                                            TaskStatus::Success => "✅",
+                                            TaskStatus::Failed => "❌",
+                                            TaskStatus::Cancelled => "🚫",
+                                        };
+                                        ui.label(format!(
+                                            "{} [{}] {}",
+                                            status_icon, entry.id, entry.name
+                                        ));
+                                        if let Some(ref msg) = entry.message {
+                                            ui.label(format!("— {msg}"));
+                                        }
+                                        if !entry.status.is_terminal() {
+                                            if ui.small_button("取消").clicked() {
+                                                cancel_ids.push(entry.id);
+                                            }
+                                        }
+                                    });
+                                }
+                                for id in cancel_ids {
+                                    self.enqueue_command(WorkbenchCommand::CancelTask(id));
+                                }
+                            });
+                    }
                 });
-            });
         }
 
         // Left sidebar

@@ -12,6 +12,7 @@ job-domain = { path = "../job-domain" }
 job-store-pg = { path = "../job-store-pg" }
 job-events = { path = "../job-events" }
 domain-workspace = { path = "../domain-workspace" }
+jobs-runtime = { path = "../jobs-runtime" }
 
 sqlx = { workspace = true }
 tokio = { workspace = true }
