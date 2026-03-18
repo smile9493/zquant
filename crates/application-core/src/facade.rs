@@ -80,6 +80,27 @@ impl ApplicationFacade {
         Ok(())
     }
 
+    /// Pull dataset from a provider (framework-level — delegates to pipeline in later milestones).
+    pub async fn pull_dataset(&self, req: PullRequest) -> Result<PullResult> {
+        info!(
+            provider = %req.provider,
+            dataset_id = %req.dataset_id,
+            symbol = %req.symbol,
+            "Pull dataset requested"
+        );
+
+        // Framework stub: real provider dispatch will be wired in a later task.
+        // For now, return a success placeholder so the UI round-trip is testable.
+        Ok(PullResult {
+            status: PullStatus::Success,
+            message: format!(
+                "拉取完成: {} / {} / {}",
+                req.provider, req.dataset_id, req.symbol
+            ),
+            record_count: 0,
+        })
+    }
+
     /// Load latest workspace snapshot from database
     pub async fn load_workspace(&self) -> Result<Option<WorkspaceSnapshot>> {
         info!("Loading latest workspace snapshot");
@@ -128,6 +149,31 @@ pub struct DataPoint {
     pub low: f64,
     pub close: f64,
     pub volume: f64,
+}
+
+/// Request to pull dataset from a provider.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PullRequest {
+    pub provider: String,
+    pub dataset_id: String,
+    pub symbol: String,
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+}
+
+/// Result of a pull operation.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PullResult {
+    pub status: PullStatus,
+    pub message: String,
+    pub record_count: usize,
+}
+
+/// Status of a pull operation.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PullStatus {
+    Success,
+    Failed,
 }
 
 /// Workspace snapshot for state persistence

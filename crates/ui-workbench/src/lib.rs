@@ -58,6 +58,52 @@ pub enum WorkbenchCommand {
     RefreshData,
     SaveWorkspace(WorkspaceSnapshot),
     CancelTask(jobs_runtime::TaskId),
+    PullDataset {
+        provider: String,
+        dataset_id: String,
+        symbol: String,
+        start_date: Option<String>,
+        end_date: Option<String>,
+    },
+}
+
+/// Provider-dataset mapping entry for the pull dialog.
+struct DatasetEntry {
+    provider: &'static str,
+    dataset_id: &'static str,
+    label: &'static str,
+}
+
+/// Static registry of available provider-dataset combinations.
+fn available_datasets() -> &'static [DatasetEntry] {
+    &[
+        DatasetEntry { provider: "akshare", dataset_id: "cn_equity.ohlcv.daily", label: "A股日线 (AkShare)" },
+        DatasetEntry { provider: "pytdx",   dataset_id: "cn_equity.ohlcv.daily", label: "A股日线 (PyTDX)" },
+        DatasetEntry { provider: "mock",    dataset_id: "mock_ohlcv",            label: "模拟数据 (Mock)" },
+    ]
+}
+
+/// Pull dialog form state.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum PullDialogPhase {
+    /// Dialog is closed.
+    Closed,
+    /// User is filling the form.
+    Editing,
+    /// Request submitted, waiting for result.
+    Submitting,
+    /// Pull completed (success or failure).
+    Done { success: bool, message: String },
+}
+
+/// State for the data pull dialog.
+struct PullDialogState {
+    phase: PullDialogPhase,
+    selected_idx: usize,
+    symbol: String,
+    start_date: String,
+    end_date: String,
+    validation_error: Option<String>,
 }
 
 /// Workbench manages the main UI layout and chart rendering
@@ -68,6 +114,7 @@ pub struct Workbench {
     current_timeframe: String,
     render_snapshot: Option<RenderSnapshot>,
     task_entries: Vec<TaskEntry>,
+    pull_dialog: PullDialogState,
 }
 
 impl Workbench {
@@ -91,6 +138,14 @@ impl Workbench {
             current_timeframe: "1D".to_string(),
             render_snapshot: Some(snapshot),
             task_entries: Vec::new(),
+            pull_dialog: PullDialogState {
+                phase: PullDialogPhase::Closed,
+                selected_idx: 0,
+                symbol: String::new(),
+                start_date: String::new(),
+                end_date: String::new(),
+                validation_error: None,
+            },
         }
     }
 
@@ -168,6 +223,11 @@ impl Workbench {
         self.command_queue.push_back(cmd);
     }
 
+    /// Notify the pull dialog of a completed pull result.
+    pub fn notify_pull_result(&mut self, success: bool, message: String) {
+        self.pull_dialog.phase = PullDialogPhase::Done { success, message };
+    }
+
     pub fn show(&mut self, ctx: &Context) {
         // Top bar
         TopBottomPanel::top("top_bar").show(ctx, |ui| {
@@ -195,6 +255,13 @@ impl Workbench {
                         symbol: self.current_symbol.clone(),
                         timeframe: self.current_timeframe.clone(),
                     });
+                }
+
+                ui.separator();
+
+                if ui.button("📥 拉取数据").clicked() {
+                    self.pull_dialog.phase = PullDialogPhase::Editing;
+                    self.pull_dialog.validation_error = None;
                 }
             });
         });
@@ -295,10 +362,134 @@ impl Workbench {
                 });
         }
 
+        // Pull data dialog (modal window)
+        if self.pull_dialog.phase != PullDialogPhase::Closed {
+            let mut open = true;
+            egui::Window::new("拉取数据")
+                .collapsible(false)
+                .resizable(false)
+                .default_width(360.0)
+                .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+                .open(&mut open)
+                .show(ctx, |ui| {
+                    self.render_pull_dialog(ui);
+                });
+            if !open {
+                self.pull_dialog.phase = PullDialogPhase::Closed;
+            }
+        }
+
         // Center canvas with K-line chart
         CentralPanel::default().show(ctx, |ui| {
             self.render_chart(ui);
         });
+    }
+
+    /// Render the pull data dialog contents.
+    fn render_pull_dialog(&mut self, ui: &mut egui::Ui) {
+        let datasets = available_datasets();
+
+        match &self.pull_dialog.phase {
+            PullDialogPhase::Submitting => {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label("正在拉取...");
+                });
+                return;
+            }
+            PullDialogPhase::Done { success, message } => {
+                let color = if *success {
+                    Color32::from_rgb(0, 180, 80)
+                } else {
+                    Color32::from_rgb(220, 50, 50)
+                };
+                ui.colored_label(color, message.as_str());
+                ui.add_space(8.0);
+                if ui.button("关闭").clicked() {
+                    self.pull_dialog.phase = PullDialogPhase::Closed;
+                }
+                return;
+            }
+            _ => {}
+        }
+
+        // Dataset combo
+        ui.horizontal(|ui| {
+            ui.label("数据集:");
+            egui::ComboBox::from_id_source("pull_dataset_combo")
+                .selected_text(datasets.get(self.pull_dialog.selected_idx).map_or("选择...", |d| d.label))
+                .show_ui(ui, |ui: &mut egui::Ui| {
+                    for (i, ds) in datasets.iter().enumerate() {
+                        ui.selectable_value(&mut self.pull_dialog.selected_idx, i, ds.label);
+                    }
+                });
+        });
+
+        // Symbol input
+        ui.horizontal(|ui| {
+            ui.label("代码:    ");
+            ui.text_edit_singleline(&mut self.pull_dialog.symbol);
+        });
+
+        // Date range
+        ui.horizontal(|ui| {
+            ui.label("起始日期:");
+            ui.add(egui::TextEdit::singleline(&mut self.pull_dialog.start_date).hint_text("YYYYMMDD"));
+        });
+        ui.horizontal(|ui| {
+            ui.label("结束日期:");
+            ui.add(egui::TextEdit::singleline(&mut self.pull_dialog.end_date).hint_text("YYYYMMDD"));
+        });
+
+        // Validation error
+        if let Some(ref err) = self.pull_dialog.validation_error {
+            ui.colored_label(Color32::from_rgb(220, 50, 50), err.as_str());
+        }
+
+        ui.add_space(8.0);
+
+        // Action buttons
+        ui.horizontal(|ui| {
+            if ui.button("拉取并加载").clicked() {
+                if let Some(err) = self.validate_pull_form(datasets) {
+                    self.pull_dialog.validation_error = Some(err);
+                } else {
+                    self.pull_dialog.validation_error = None;
+                    let ds = &datasets[self.pull_dialog.selected_idx];
+                    self.pull_dialog.phase = PullDialogPhase::Submitting;
+                    self.enqueue_command(WorkbenchCommand::PullDataset {
+                        provider: ds.provider.to_string(),
+                        dataset_id: ds.dataset_id.to_string(),
+                        symbol: self.pull_dialog.symbol.trim().to_string(),
+                        start_date: if self.pull_dialog.start_date.trim().is_empty() { None } else { Some(self.pull_dialog.start_date.trim().to_string()) },
+                        end_date: if self.pull_dialog.end_date.trim().is_empty() { None } else { Some(self.pull_dialog.end_date.trim().to_string()) },
+                    });
+                }
+            }
+            if ui.button("取消").clicked() {
+                self.pull_dialog.phase = PullDialogPhase::Closed;
+            }
+        });
+    }
+
+    /// Validate pull form fields. Returns Some(error) if invalid.
+    fn validate_pull_form(&self, datasets: &[DatasetEntry]) -> Option<String> {
+        if self.pull_dialog.selected_idx >= datasets.len() {
+            return Some("请选择数据集".to_string());
+        }
+        let sym = self.pull_dialog.symbol.trim();
+        if sym.is_empty() {
+            return Some("请输入代码".to_string());
+        }
+        let sd = self.pull_dialog.start_date.trim();
+        if !sd.is_empty() && (sd.len() != 8 || !sd.chars().all(|c| c.is_ascii_digit())) {
+            return Some("起始日期格式应为 YYYYMMDD".to_string());
+        }
+        let ed = self.pull_dialog.end_date.trim();
+        if !ed.is_empty() && (ed.len() != 8 || !ed.chars().all(|c| c.is_ascii_digit())) {
+            return Some("结束日期格式应为 YYYYMMDD".to_string());
+        }
+        None
     }
 
     /// Render K-line chart in center canvas using egui_plot.
@@ -425,5 +616,134 @@ mod tests {
         wb.enqueue_command(WorkbenchCommand::RefreshData);
         assert!(matches!(wb.poll_command(), Some(WorkbenchCommand::RefreshData)));
         assert!(wb.poll_command().is_none());
+    }
+
+    // T5: Pull dialog state machine tests
+    #[test]
+    fn pull_dialog_initial_state_is_closed() {
+        let wb = Workbench::new();
+        assert_eq!(wb.pull_dialog.phase, PullDialogPhase::Closed);
+    }
+
+    #[test]
+    fn pull_dialog_transitions_to_editing() {
+        let mut wb = Workbench::new();
+        wb.pull_dialog.phase = PullDialogPhase::Editing;
+        assert_eq!(wb.pull_dialog.phase, PullDialogPhase::Editing);
+    }
+
+    #[test]
+    fn pull_dialog_transitions_to_submitting() {
+        let mut wb = Workbench::new();
+        wb.pull_dialog.phase = PullDialogPhase::Submitting;
+        assert_eq!(wb.pull_dialog.phase, PullDialogPhase::Submitting);
+    }
+
+    #[test]
+    fn pull_dialog_transitions_to_done_success() {
+        let mut wb = Workbench::new();
+        wb.notify_pull_result(true, "成功".to_string());
+        assert!(matches!(
+            wb.pull_dialog.phase,
+            PullDialogPhase::Done { success: true, .. }
+        ));
+    }
+
+    #[test]
+    fn pull_dialog_transitions_to_done_failure() {
+        let mut wb = Workbench::new();
+        wb.notify_pull_result(false, "失败".to_string());
+        assert!(matches!(
+            wb.pull_dialog.phase,
+            PullDialogPhase::Done { success: false, .. }
+        ));
+    }
+
+    // T5: Form validation tests
+    #[test]
+    fn validate_pull_form_empty_symbol() {
+        let wb = Workbench::new();
+        let datasets = available_datasets();
+        let err = wb.validate_pull_form(datasets);
+        assert!(err.is_some());
+        assert!(err.unwrap().contains("请输入代码"));
+    }
+
+    #[test]
+    fn validate_pull_form_invalid_start_date_format() {
+        let mut wb = Workbench::new();
+        wb.pull_dialog.symbol = "600000".to_string();
+        wb.pull_dialog.start_date = "2024-01-01".to_string(); // wrong format
+        let datasets = available_datasets();
+        let err = wb.validate_pull_form(datasets);
+        assert!(err.is_some());
+        assert!(err.unwrap().contains("起始日期格式"));
+    }
+
+    #[test]
+    fn validate_pull_form_invalid_end_date_format() {
+        let mut wb = Workbench::new();
+        wb.pull_dialog.symbol = "600000".to_string();
+        wb.pull_dialog.end_date = "20240101X".to_string(); // contains non-digit
+        let datasets = available_datasets();
+        let err = wb.validate_pull_form(datasets);
+        assert!(err.is_some());
+        assert!(err.unwrap().contains("结束日期格式"));
+    }
+
+    #[test]
+    fn validate_pull_form_valid_minimal() {
+        let mut wb = Workbench::new();
+        wb.pull_dialog.symbol = "600000".to_string();
+        let datasets = available_datasets();
+        let err = wb.validate_pull_form(datasets);
+        assert!(err.is_none());
+    }
+
+    #[test]
+    fn validate_pull_form_valid_with_dates() {
+        let mut wb = Workbench::new();
+        wb.pull_dialog.symbol = "600000".to_string();
+        wb.pull_dialog.start_date = "20240101".to_string();
+        wb.pull_dialog.end_date = "20241231".to_string();
+        let datasets = available_datasets();
+        let err = wb.validate_pull_form(datasets);
+        assert!(err.is_none());
+    }
+
+    // T5: Command mapping tests
+    #[test]
+    fn pull_dataset_command_enqueued() {
+        let mut wb = Workbench::new();
+        wb.enqueue_command(WorkbenchCommand::PullDataset {
+            provider: "akshare".to_string(),
+            dataset_id: "cn_equity.ohlcv.daily".to_string(),
+            symbol: "600000".to_string(),
+            start_date: Some("20240101".to_string()),
+            end_date: Some("20241231".to_string()),
+        });
+        let cmd = wb.poll_command();
+        assert!(matches!(cmd, Some(WorkbenchCommand::PullDataset { .. })));
+    }
+
+    #[test]
+    fn available_datasets_registry_not_empty() {
+        let datasets = available_datasets();
+        assert!(!datasets.is_empty());
+        assert!(datasets.len() >= 3); // akshare, pytdx, mock
+    }
+
+    #[test]
+    fn available_datasets_contains_akshare() {
+        let datasets = available_datasets();
+        let has_akshare = datasets.iter().any(|d| d.provider == "akshare");
+        assert!(has_akshare);
+    }
+
+    #[test]
+    fn available_datasets_contains_pytdx() {
+        let datasets = available_datasets();
+        let has_pytdx = datasets.iter().any(|d| d.provider == "pytdx");
+        assert!(has_pytdx);
     }
 }

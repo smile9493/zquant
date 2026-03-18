@@ -1,7 +1,7 @@
 use eframe::egui;
 use tracing::{info, debug, warn, error};
 use ui_workbench::{Workbench, WorkbenchCommand, RenderSnapshot};
-use application_core::ApplicationFacade;
+use application_core::{ApplicationFacade, PullRequest};
 use crate::health::{HealthReport, CheckSeverity};
 use crate::notification::StartupNotification;
 use std::sync::Arc;
@@ -20,6 +20,9 @@ pub struct ZQuantApp {
     /// Channel for receiving render snapshots from async chart loads.
     snapshot_rx: std::sync::mpsc::Receiver<RenderSnapshot>,
     snapshot_tx: std::sync::mpsc::Sender<RenderSnapshot>,
+    /// Channel for receiving pull results from async pull operations.
+    pull_result_rx: std::sync::mpsc::Receiver<(bool, String)>,
+    pull_result_tx: std::sync::mpsc::Sender<(bool, String)>,
 }
 
 impl ZQuantApp {
@@ -79,6 +82,7 @@ impl ZQuantApp {
         let show_notifications = !startup_notifications.is_empty();
 
         let (snapshot_tx, snapshot_rx) = std::sync::mpsc::channel();
+        let (pull_result_tx, pull_result_rx) = std::sync::mpsc::channel();
 
         Self {
             workbench,
@@ -89,6 +93,8 @@ impl ZQuantApp {
             show_notifications,
             snapshot_rx,
             snapshot_tx,
+            pull_result_rx,
+            pull_result_tx,
         }
     }
 
@@ -180,6 +186,34 @@ impl ZQuantApp {
                     }
                 });
             }
+            WorkbenchCommand::PullDataset { provider, dataset_id, symbol, start_date, end_date } => {
+                let tx = self.pull_result_tx.clone();
+                runtime.spawn(async move {
+                    let req = PullRequest {
+                        provider: provider.clone(),
+                        dataset_id: dataset_id.clone(),
+                        symbol: symbol.clone(),
+                        start_date,
+                        end_date,
+                    };
+                    match facade.pull_dataset(req).await {
+                        Ok(result) => {
+                            let success = result.status == application_core::PullStatus::Success;
+                            info!(
+                                provider = %provider,
+                                symbol = %symbol,
+                                records = result.record_count,
+                                "Pull completed"
+                            );
+                            let _ = tx.send((success, result.message));
+                        }
+                        Err(e) => {
+                            warn!("Pull failed: {}", e);
+                            let _ = tx.send((false, format!("拉取失败: {e}")));
+                        }
+                    }
+                });
+            }
         }
     }
 }
@@ -196,6 +230,11 @@ impl eframe::App for ZQuantApp {
         // Drain any pending render snapshots from async chart loads
         while let Ok(snap) = self.snapshot_rx.try_recv() {
             self.workbench.update_render_snapshot(snap);
+        }
+
+        // Drain any pending pull results
+        while let Ok((success, message)) = self.pull_result_rx.try_recv() {
+            self.workbench.notify_pull_result(success, message);
         }
 
         if let Some(cmd) = self.workbench.poll_command() {

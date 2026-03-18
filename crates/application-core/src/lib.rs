@@ -10,7 +10,7 @@ use sqlx::PgPool;
 
 mod facade;
 
-pub use facade::{ApplicationFacade, ChartData, WorkspaceSnapshot, LayoutState};
+pub use facade::{ApplicationFacade, ChartData, WorkspaceSnapshot, LayoutState, PullRequest, PullResult, PullStatus};
 pub use jobs_runtime::{TaskEntry, TaskEvent, TaskId, TaskStatus};
 
 /// Application core initialization
