@@ -1,0 +1,44 @@
+{
+  "id": "03-19-findings-remediation-execution",
+  "name": "03-19-findings-remediation-execution",
+  "title": "审查发现整改执行计划（冗余/Public/算法）",
+  "description": "承接项目审查发现，分阶段整改冗余结构、public 暴露与关键算法热点",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-19",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

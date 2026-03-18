@@ -23,6 +23,8 @@ pub struct ZQuantApp {
     /// Channel for receiving pull results from async pull operations.
     pull_result_rx: std::sync::mpsc::Receiver<(bool, String)>,
     pull_result_tx: std::sync::mpsc::Sender<(bool, String)>,
+    /// Cached count of non-terminal tasks (updated each frame, avoids redundant block_on).
+    cached_running_task_count: usize,
 }
 
 impl ZQuantApp {
@@ -95,6 +97,7 @@ impl ZQuantApp {
             snapshot_tx,
             pull_result_rx,
             pull_result_tx,
+            cached_running_task_count: 0,
         }
     }
 
@@ -224,6 +227,7 @@ impl eframe::App for ZQuantApp {
         if let (Some(rt), Some(facade)) = (&self.runtime, &self.facade) {
             let facade = facade.clone();
             let tasks = rt.block_on(facade.list_tasks());
+            self.cached_running_task_count = tasks.iter().filter(|t| !t.status.is_terminal()).count();
             self.workbench.update_tasks(tasks);
         }
 
@@ -294,14 +298,7 @@ impl eframe::App for ZQuantApp {
                     ui.label(db_status);
 
                     ui.separator();
-                    let task_count = if let (Some(rt), Some(facade)) = (&self.runtime, &self.facade) {
-                        let facade = facade.clone();
-                        let tasks = rt.block_on(facade.list_tasks());
-                        tasks.iter().filter(|t| !t.status.is_terminal()).count()
-                    } else {
-                        0
-                    };
-                    ui.label(format!("运行中任务: {task_count}"));
+                    ui.label(format!("运行中任务: {}", self.cached_running_task_count));
                 });
             });
     }

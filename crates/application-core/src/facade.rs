@@ -63,7 +63,7 @@ impl ApplicationFacade {
     }
 
     /// Save workspace snapshot to database
-    pub async fn save_workspace(&self, snapshot: WorkspaceSnapshot) -> Result<()> {
+    pub async fn save_workspace(&self, snapshot: WorkspaceState) -> Result<()> {
         info!("Saving workspace snapshot: symbol={:?}", snapshot.symbol);
         
         let db_snapshot = domain_workspace::WorkspaceSnapshot {
@@ -102,7 +102,7 @@ impl ApplicationFacade {
     }
 
     /// Load latest workspace snapshot from database
-    pub async fn load_workspace(&self) -> Result<Option<WorkspaceSnapshot>> {
+    pub async fn load_workspace(&self) -> Result<Option<WorkspaceState>> {
         info!("Loading latest workspace snapshot");
         
         let db_snapshot = self.workspace_store.load_or_default("default").await;
@@ -117,7 +117,7 @@ impl ApplicationFacade {
             }
         };
         
-        Ok(Some(WorkspaceSnapshot {
+        Ok(Some(WorkspaceState {
             symbol: db_snapshot.symbol,
             timeframe: db_snapshot.timeframe,
             layout_state,
@@ -176,9 +176,10 @@ pub enum PullStatus {
     Failed,
 }
 
-/// Workspace snapshot for state persistence
+/// UI-layer workspace state for persistence.
+/// Distinct from `domain_workspace::WorkspaceSnapshot` which is the DB model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct WorkspaceSnapshot {
+pub struct WorkspaceState {
     pub symbol: Option<String>,
     pub timeframe: Option<String>,
     pub layout_state: LayoutState,
@@ -250,7 +251,7 @@ mod tests {
 
     #[test]
     fn workspace_snapshot_roundtrip() {
-        let snap = WorkspaceSnapshot {
+        let snap = WorkspaceState {
             symbol: Some("AAPL".to_string()),
             timeframe: Some("1D".to_string()),
             layout_state: LayoutState {
@@ -260,7 +261,7 @@ mod tests {
             },
         };
         let json = serde_json::to_string(&snap).unwrap();
-        let restored: WorkspaceSnapshot = serde_json::from_str(&json).unwrap();
+        let restored: WorkspaceState = serde_json::from_str(&json).unwrap();
         assert_eq!(restored.symbol.as_deref(), Some("AAPL"));
         assert_eq!(restored.timeframe.as_deref(), Some("1D"));
         assert!(restored.layout_state.left_visible);

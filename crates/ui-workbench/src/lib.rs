@@ -3,7 +3,7 @@ use egui_plot::{Plot, Bar, BarChart, Line, PlotPoints};
 use jobs_runtime::{TaskEntry, TaskStatus};
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
-use application_core::WorkspaceSnapshot;
+use application_core::WorkspaceState;
 use std::collections::VecDeque;
 
 /// Panel visibility state
@@ -56,7 +56,7 @@ pub struct RenderSnapshot {
 pub enum WorkbenchCommand {
     LoadChart { symbol: String, timeframe: String },
     RefreshData,
-    SaveWorkspace(WorkspaceSnapshot),
+    SaveWorkspace(WorkspaceState),
     CancelTask(jobs_runtime::TaskId),
     PullDataset {
         provider: String,
@@ -192,7 +192,7 @@ impl Workbench {
     }
 
     /// Restore workbench state from a workspace snapshot
-    pub fn restore_from_snapshot(&mut self, snapshot: &WorkspaceSnapshot) {
+    pub fn restore_from_snapshot(&mut self, snapshot: &WorkspaceState) {
         if let Some(ref s) = snapshot.symbol {
             self.current_symbol = s.clone();
         }
@@ -206,8 +206,8 @@ impl Workbench {
     }
 
     /// Create workspace snapshot
-    pub fn create_snapshot(&self) -> WorkspaceSnapshot {
-        WorkspaceSnapshot {
+    pub fn create_snapshot(&self) -> WorkspaceState {
+        WorkspaceState {
             symbol: Some(self.current_symbol.clone()),
             timeframe: Some(self.current_timeframe.clone()),
             layout_state: application_core::LayoutState {

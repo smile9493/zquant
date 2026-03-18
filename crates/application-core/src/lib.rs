@@ -10,7 +10,7 @@ use sqlx::PgPool;
 
 mod facade;
 
-pub use facade::{ApplicationFacade, ChartData, WorkspaceSnapshot, LayoutState, PullRequest, PullResult, PullStatus};
+pub use facade::{ApplicationFacade, ChartData, WorkspaceState, LayoutState, PullRequest, PullResult, PullStatus};
 pub use jobs_runtime::{TaskEntry, TaskEvent, TaskId, TaskStatus};
 
 /// Application core initialization
@@ -60,7 +60,7 @@ mod tests {
     fn application_core_exports_expected_types() {
         // Verify public API surface is accessible
         let _: fn() -> LayoutState = LayoutState::default;
-        let _: fn() -> WorkspaceSnapshot = || WorkspaceSnapshot {
+        let _: fn() -> WorkspaceState = || WorkspaceState {
             symbol: None,
             timeframe: None,
             layout_state: LayoutState::default(),

@@ -1,48 +1,15 @@
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
-use data_pipeline_domain::{Capability, DqDecision, DqIssue, Market};
 use job_events::bus::{Event, EventBus};
+use job_events::types;
 use std::sync::Arc;
 use tracing::info;
 
-pub struct DatasetFetchedEvent {
-    pub dataset_id: String,
-    pub provider: String,
-    pub capability: Capability,
-    pub market: Market,
-    pub timestamp: DateTime<Utc>,
-    pub row_count: usize,
-}
-
-pub struct DatasetGateCompletedEvent {
-    pub dataset_id: String,
-    pub decision: DqDecision,
-    pub quality_score: f64,
-    pub issue_count: usize,
-    pub timestamp: DateTime<Utc>,
-}
-
-pub struct DatasetIngestedEvent {
-    pub dataset_id: String,
-    pub decision: DqDecision,
-    pub storage_path: String,
-    pub catalog_id: String,
-    pub timestamp: DateTime<Utc>,
-}
-
-pub struct DqRejectionEvent {
-    pub quarantine_id: String,
-    pub dataset_id: String,
-    pub reasons: Vec<String>,
-    pub timestamp: DateTime<Utc>,
-}
-
-pub struct DqDegradedEvent {
-    pub dataset_id: String,
-    pub quality_score: f64,
-    pub issues: Vec<DqIssue>,
-    pub timestamp: DateTime<Utc>,
-}
+// Re-export bus event types as the single source of truth.
+// Callers construct `types::DatasetFetchedEvent` etc. directly.
+pub use types::{
+    DatasetFetchedEvent, DatasetGateCompletedEvent, DatasetIngestedEvent, DqDegradedEvent,
+    DqIssue, DqRejectionEvent,
+};
 
 #[async_trait]
 pub trait EventEmitter: Send + Sync {
@@ -85,18 +52,8 @@ impl EventEmitter for PipelineEventEmitter {
             row_count = event.row_count,
             "dataset.fetched"
         );
-
         if let Some(bus) = &self.bus {
-            let bus_event = job_events::types::DatasetFetchedEvent {
-                schema_v: "1.0".to_string(),
-                dataset_id: event.dataset_id,
-                provider: event.provider,
-                capability: format!("{:?}", event.capability),
-                market: format!("{:?}", event.market),
-                timestamp: event.timestamp,
-                row_count: event.row_count,
-            };
-            bus.publish(Event::DatasetFetched(bus_event));
+            bus.publish(Event::DatasetFetched(event));
         }
         Ok(())
     }
@@ -107,22 +64,13 @@ impl EventEmitter for PipelineEventEmitter {
     ) -> anyhow::Result<()> {
         info!(
             dataset_id = %event.dataset_id,
-            decision = ?event.decision,
+            decision = %event.decision,
             quality_score = event.quality_score,
             issue_count = event.issue_count,
             "dataset.gate.completed"
         );
-
         if let Some(bus) = &self.bus {
-            let bus_event = job_events::types::DatasetGateCompletedEvent {
-                schema_v: "1.0".to_string(),
-                dataset_id: event.dataset_id,
-                decision: format!("{:?}", event.decision),
-                quality_score: event.quality_score,
-                issue_count: event.issue_count,
-                timestamp: event.timestamp,
-            };
-            bus.publish(Event::DatasetGateCompleted(bus_event));
+            bus.publish(Event::DatasetGateCompleted(event));
         }
         Ok(())
     }
@@ -130,22 +78,13 @@ impl EventEmitter for PipelineEventEmitter {
     async fn emit_dataset_ingested(&self, event: DatasetIngestedEvent) -> anyhow::Result<()> {
         info!(
             dataset_id = %event.dataset_id,
-            decision = ?event.decision,
+            decision = %event.decision,
             storage_path = %event.storage_path,
             catalog_id = %event.catalog_id,
             "dataset.ingested"
         );
-
         if let Some(bus) = &self.bus {
-            let bus_event = job_events::types::DatasetIngestedEvent {
-                schema_v: "1.0".to_string(),
-                dataset_id: event.dataset_id,
-                decision: format!("{:?}", event.decision),
-                storage_path: event.storage_path,
-                catalog_id: event.catalog_id,
-                timestamp: event.timestamp,
-            };
-            bus.publish(Event::DatasetIngested(bus_event));
+            bus.publish(Event::DatasetIngested(event));
         }
         Ok(())
     }
@@ -157,16 +96,8 @@ impl EventEmitter for PipelineEventEmitter {
             reasons = ?event.reasons,
             "dq.rejection"
         );
-
         if let Some(bus) = &self.bus {
-            let bus_event = job_events::types::DqRejectionEvent {
-                schema_v: "1.0".to_string(),
-                quarantine_id: event.quarantine_id,
-                dataset_id: event.dataset_id,
-                reasons: event.reasons,
-                timestamp: event.timestamp,
-            };
-            bus.publish(Event::DqRejection(bus_event));
+            bus.publish(Event::DqRejection(event));
         }
         Ok(())
     }
@@ -178,20 +109,8 @@ impl EventEmitter for PipelineEventEmitter {
             issue_count = event.issues.len(),
             "dq.degraded"
         );
-
         if let Some(bus) = &self.bus {
-            let bus_event = job_events::types::DqDegradedEvent {
-                schema_v: "1.0".to_string(),
-                dataset_id: event.dataset_id,
-                quality_score: event.quality_score,
-                issues: event.issues.iter().map(|i| job_events::types::DqIssue {
-                    severity: format!("{:?}", i.severity),
-                    field: i.field.clone(),
-                    message: i.message.clone(),
-                }).collect(),
-                timestamp: event.timestamp,
-            };
-            bus.publish(Event::DqDegraded(bus_event));
+            bus.publish(Event::DqDegraded(event));
         }
         Ok(())
     }

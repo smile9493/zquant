@@ -112,10 +112,11 @@ impl DataPipelineManager {
         let emit_start = Instant::now();
         let emit_result = self.event_emitter
             .emit_dataset_fetched(crate::events::DatasetFetchedEvent {
+                schema_v: "1.0".to_string(),
                 dataset_id: dataset_id.clone(),
                 provider: provider.provider_name().to_string(),
-                capability: dr.capability,
-                market: dr.market,
+                capability: dr.capability.to_string(),
+                market: dr.market.to_string(),
                 timestamp: Utc::now(),
                 row_count: normalized.records.len(),
             })
@@ -141,8 +142,9 @@ impl DataPipelineManager {
         let emit_start = Instant::now();
         let emit_result = self.event_emitter
             .emit_dataset_gate_completed(crate::events::DatasetGateCompletedEvent {
+                schema_v: "1.0".to_string(),
                 dataset_id: dataset_id.clone(),
-                decision: qr.decision,
+                decision: qr.decision.to_string(),
                 quality_score: qr.quality_score,
                 issue_count: qr.issues.len(),
                 timestamp: Utc::now(),
@@ -197,8 +199,9 @@ impl DataPipelineManager {
                 let emit_start = Instant::now();
                 let emit_result = self.event_emitter
                     .emit_dataset_ingested(crate::events::DatasetIngestedEvent {
+                        schema_v: "1.0".to_string(),
                         dataset_id: dataset_id.clone(),
-                        decision: qr.decision,
+                        decision: qr.decision.to_string(),
                         storage_path: receipt.storage_path.clone(),
                         catalog_id: catalog_id.clone(),
                         timestamp: Utc::now(),
@@ -220,9 +223,14 @@ impl DataPipelineManager {
                     let emit_start = Instant::now();
                     let emit_result = self.event_emitter
                         .emit_dq_degraded(crate::events::DqDegradedEvent {
+                            schema_v: "1.0".to_string(),
                             dataset_id: dataset_id.clone(),
                             quality_score: qr.quality_score,
-                            issues: qr.issues.clone(),
+                            issues: qr.issues.iter().map(|i| crate::events::DqIssue {
+                                severity: i.severity.to_string(),
+                                field: i.field.clone(),
+                                message: i.message.clone(),
+                            }).collect(),
                             timestamp: Utc::now(),
                         })
                         .instrument(tracing::info_span!(
@@ -276,6 +284,7 @@ impl DataPipelineManager {
                 let emit_start = Instant::now();
                 let emit_result = self.event_emitter
                     .emit_dq_rejection(crate::events::DqRejectionEvent {
+                        schema_v: "1.0".to_string(),
                         quarantine_id: quarantine_id.clone(),
                         dataset_id: dataset_id.clone(),
                         reasons,

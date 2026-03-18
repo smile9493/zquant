@@ -62,7 +62,7 @@ impl QualityGate for BasicQualityGate {
         };
 
         tracing::Span::current().record("quality_score", quality_score.max(0.0));
-        tracing::Span::current().record("decision", format!("{:?}", decision).as_str());
+        tracing::Span::current().record("decision", decision.to_string().as_str());
 
         Ok(DataQualityResult {
             decision,

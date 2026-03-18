@@ -183,7 +183,7 @@ impl HotStoreWriter for HotStore {
 
 /// Trait for provider operations (fetching remote data)
 #[async_trait]
-pub trait ProviderOps: Send + Sync {
+pub(crate) trait ProviderOps: Send + Sync {
     async fn fetch_bars(
         &self,
         provider: &str,
@@ -197,7 +197,7 @@ pub trait ProviderOps: Send + Sync {
 
 /// Trait for hot store write operations
 #[async_trait]
-pub trait HotStoreWriter: Send + Sync {
+pub(crate) trait HotStoreWriter: Send + Sync {
     async fn upsert_bars(
         &self,
         provider: &str,
@@ -210,7 +210,7 @@ pub trait HotStoreWriter: Send + Sync {
 
 /// Trait for hot store operations (enables testing)
 #[async_trait]
-pub trait HotStoreOps: Send + Sync {
+pub(crate) trait HotStoreOps: Send + Sync {
     async fn load_bars(
         &self,
         provider: &str,
@@ -240,7 +240,7 @@ impl HotStoreOps for HotStore {
 
 /// Trait for manifest store operations (enables testing)
 #[async_trait]
-pub trait ManifestStoreOps: Send + Sync {
+pub(crate) trait ManifestStoreOps: Send + Sync {
     async fn find_partitions(
         &self,
         provider: &str,
@@ -270,7 +270,7 @@ impl ManifestStoreOps for ManifestStore {
 
 /// Trait for Parquet reader operations (enables testing)
 #[async_trait]
-pub trait ParquetReaderOps: Send + Sync {
+pub(crate) trait ParquetReaderOps: Send + Sync {
     async fn read_range(
         &self,
         key: &PartitionKey,
@@ -353,7 +353,8 @@ impl MarketRepository {
         }
     }
 
-    pub fn with_provider(mut self, provider: Box<dyn ProviderOps>) -> Self {
+    #[allow(dead_code)] // Reserved for runtime provider injection
+    pub(crate) fn with_provider(mut self, provider: Box<dyn ProviderOps>) -> Self {
         self.provider = provider;
         self
     }
