@@ -1,6 +1,6 @@
 use eframe::egui;
 use tracing::{info, debug, warn, error};
-use ui_workbench::{Workbench, WorkbenchCommand};
+use ui_workbench::{Workbench, WorkbenchCommand, RenderSnapshot};
 use application_core::ApplicationFacade;
 use crate::health::{HealthReport, CheckSeverity};
 use crate::notification::StartupNotification;
@@ -17,6 +17,9 @@ pub struct ZQuantApp {
     startup_notifications: Vec<StartupNotification>,
     /// Whether the notification panel is visible.
     show_notifications: bool,
+    /// Channel for receiving render snapshots from async chart loads.
+    snapshot_rx: std::sync::mpsc::Receiver<RenderSnapshot>,
+    snapshot_tx: std::sync::mpsc::Sender<RenderSnapshot>,
 }
 
 impl ZQuantApp {
@@ -75,6 +78,8 @@ impl ZQuantApp {
 
         let show_notifications = !startup_notifications.is_empty();
 
+        let (snapshot_tx, snapshot_rx) = std::sync::mpsc::channel();
+
         Self {
             workbench,
             facade,
@@ -82,6 +87,8 @@ impl ZQuantApp {
             health_report,
             startup_notifications,
             show_notifications,
+            snapshot_rx,
+            snapshot_tx,
         }
     }
 
@@ -125,9 +132,24 @@ impl ZQuantApp {
 
         match cmd {
             WorkbenchCommand::LoadChart { symbol, timeframe } => {
+                let tx = self.snapshot_tx.clone();
                 runtime.spawn(async move {
                     match facade.load_chart(&symbol, &timeframe).await {
-                        Ok(data) => info!("Chart loaded: {} points", data.data_points.len()),
+                        Ok(data) => {
+                            info!("Chart loaded: {} points", data.data_points.len());
+                            let snap = RenderSnapshot {
+                                symbol: data.symbol,
+                                timeframe: data.timeframe,
+                                candles: vec![], // placeholder — real candle conversion in later milestones
+                                provider: data.provider,
+                                dataset_id: data.dataset_id,
+                                market: data.market,
+                                capability: data.capability,
+                            };
+                            if let Err(e) = tx.send(snap) {
+                                warn!("Failed to send render snapshot to UI: {}", e);
+                            }
+                        }
                         Err(e) => warn!("Failed to load chart: {}", e),
                     }
                 });
@@ -169,6 +191,11 @@ impl eframe::App for ZQuantApp {
             let facade = facade.clone();
             let tasks = rt.block_on(facade.list_tasks());
             self.workbench.update_tasks(tasks);
+        }
+
+        // Drain any pending render snapshots from async chart loads
+        while let Ok(snap) = self.snapshot_rx.try_recv() {
+            self.workbench.update_render_snapshot(snap);
         }
 
         if let Some(cmd) = self.workbench.poll_command() {

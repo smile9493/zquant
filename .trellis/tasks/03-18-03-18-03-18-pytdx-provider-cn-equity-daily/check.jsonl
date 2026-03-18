@@ -1,0 +1,4 @@
+{"file": ".kilocode/workflows/finish-work.md", "reason": "Finish work checklist"}
+{"file": ".kilocode/workflows/check-backend.md", "reason": "Backend check spec"}
+{"file": "crates\\data-pipeline-domain\\src\\request.rs", "reason": "Review: DatasetRequest fields"}
+{"file": "crates\\data-pipeline-application\\src\\manager.rs", "reason": "Review: ingest pipeline expectations"}

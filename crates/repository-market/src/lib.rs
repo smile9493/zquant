@@ -5,7 +5,9 @@
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
+use data_pipeline_application::AkshareProvider;
+use data_pipeline_domain::{Capability, DataProvider, DatasetRequest, Market, TimeRange};
 use infra_parquet::{ArchiveConfig, MarketDataPoint, PartitionKey, ParquetReader, ParquetWriter};
 use sqlx::PgPool;
 use store_manifest::{ManifestStore, PartitionRecord};
@@ -19,21 +21,148 @@ pub use error::{classify_error, retry_on_transient, ErrorKind, RetryConfig};
 pub use gap::{Gap, GapCalculator};
 pub use hot_store::HotStore;
 
-/// No-op provider (placeholder for T3)
-struct NoOpProvider;
+/// Routed remote provider that currently supports AkShare CN daily OHLCV.
+struct RoutedRemoteProvider {
+    akshare: AkshareProvider,
+}
+
+impl RoutedRemoteProvider {
+    fn new() -> Self {
+        Self {
+            akshare: AkshareProvider::new_subprocess(),
+        }
+    }
+
+    #[cfg(test)]
+    fn with_akshare_provider(akshare: AkshareProvider) -> Self {
+        Self { akshare }
+    }
+
+    async fn fetch_akshare_bars(
+        &self,
+        symbol: &str,
+        timeframe: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<Vec<Bar>> {
+        if !Self::is_daily_timeframe(timeframe) {
+            anyhow::bail!(
+                "AkShare only supports daily timeframe for now, got '{}'",
+                timeframe
+            );
+        }
+
+        let request = DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some(AkshareProvider::DATASET_ID_CN_EQUITY_OHLCV_DAILY.to_string()),
+            symbol_scope: vec![symbol.to_string()],
+            time_range: Some(TimeRange { start, end }),
+            forced_provider: Some(AkshareProvider::PROVIDER_NAME.to_string()),
+        };
+
+        let raw = self
+            .akshare
+            .fetch_dataset(request)
+            .await
+            .context("AkShare fetch_dataset failed")?;
+
+        Self::parse_akshare_bars(&raw.content)
+    }
+
+    fn is_daily_timeframe(timeframe: &str) -> bool {
+        matches!(timeframe.to_ascii_lowercase().as_str(), "1d" | "d" | "day" | "daily")
+    }
+
+    fn parse_akshare_bars(payload: &serde_json::Value) -> Result<Vec<Bar>> {
+        let records = payload
+            .get("data")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| anyhow::anyhow!("AkShare response missing 'data' array"))?;
+
+        let mut bars = Vec::with_capacity(records.len());
+
+        for (index, record) in records.iter().enumerate() {
+            let timestamp = Self::parse_date_field(record, "date")
+                .with_context(|| format!("invalid date at record index {}", index))?;
+            let open = Self::parse_number_field(record, "open")
+                .with_context(|| format!("invalid open at record index {}", index))?;
+            let high = Self::parse_number_field(record, "high")
+                .with_context(|| format!("invalid high at record index {}", index))?;
+            let low = Self::parse_number_field(record, "low")
+                .with_context(|| format!("invalid low at record index {}", index))?;
+            let close = Self::parse_number_field(record, "close")
+                .with_context(|| format!("invalid close at record index {}", index))?;
+            let volume = Self::parse_number_field(record, "volume")
+                .with_context(|| format!("invalid volume at record index {}", index))?;
+
+            bars.push(Bar {
+                timestamp,
+                open,
+                high,
+                low,
+                close,
+                volume,
+            });
+        }
+
+        bars.sort_by_key(|bar| bar.timestamp);
+        Ok(bars)
+    }
+
+    fn parse_date_field(record: &serde_json::Value, field: &str) -> Result<DateTime<Utc>> {
+        let date_str = record
+            .get(field)
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| anyhow::anyhow!("missing or non-string date field '{}'", field))?;
+
+        let date = NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+            .or_else(|_| NaiveDate::parse_from_str(date_str, "%Y%m%d"))
+            .with_context(|| format!("unable to parse date '{}' with supported formats", date_str))?;
+
+        let naive = date
+            .and_hms_opt(0, 0, 0)
+            .ok_or_else(|| anyhow::anyhow!("invalid date value '{}'", date_str))?;
+
+        Ok(DateTime::from_naive_utc_and_offset(naive, Utc))
+    }
+
+    fn parse_number_field(record: &serde_json::Value, field: &str) -> Result<f64> {
+        let value = record
+            .get(field)
+            .ok_or_else(|| anyhow::anyhow!("missing numeric field '{}'", field))?;
+
+        if let Some(number) = value.as_f64() {
+            return Ok(number);
+        }
+
+        if let Some(text) = value.as_str() {
+            let parsed = text
+                .parse::<f64>()
+                .with_context(|| format!("failed to parse '{}' from '{}'", field, text))?;
+            return Ok(parsed);
+        }
+
+        anyhow::bail!("field '{}' is neither number nor numeric string", field);
+    }
+}
 
 #[async_trait]
-impl ProviderOps for NoOpProvider {
+impl ProviderOps for RoutedRemoteProvider {
     async fn fetch_bars(
         &self,
-        _provider: &str,
+        provider: &str,
         _exchange: &str,
-        _symbol: &str,
-        _timeframe: &str,
-        _start: DateTime<Utc>,
-        _end: DateTime<Utc>,
+        symbol: &str,
+        timeframe: &str,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
     ) -> Result<Vec<Bar>> {
-        Ok(Vec::new())
+        if provider.eq_ignore_ascii_case(AkshareProvider::PROVIDER_NAME) {
+            return self.fetch_akshare_bars(symbol, timeframe, start, end).await;
+        }
+
+        anyhow::bail!("unsupported remote provider '{}'", provider);
     }
 }
 
@@ -219,9 +348,14 @@ impl MarketRepository {
             manifest_store: Box::new(ManifestStore::new(pool)),
             parquet_reader: Box::new(ParquetReader::new(archive_config.clone())),
             parquet_writer: ParquetWriter::new(archive_config),
-            provider: Box::new(NoOpProvider),
+            provider: Box::new(RoutedRemoteProvider::new()),
             retry_config: RetryConfig::default(),
         }
+    }
+
+    pub fn with_provider(mut self, provider: Box<dyn ProviderOps>) -> Self {
+        self.provider = provider;
+        self
     }
 
     #[cfg(test)]
@@ -497,7 +631,9 @@ impl MarketRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use data_pipeline_application::PythonRunner;
     use chrono::TimeZone;
+    use std::path::Path;
     use std::sync::{Arc, Mutex};
 
     fn create_test_bar(timestamp: DateTime<Utc>) -> Bar {
@@ -509,6 +645,82 @@ mod tests {
             close: 103.0,
             volume: 1000.0,
         }
+    }
+
+    struct FakePythonRunner {
+        response: serde_json::Value,
+    }
+
+    #[async_trait]
+    impl PythonRunner for FakePythonRunner {
+        async fn run_json(
+            &self,
+            _script_path: &Path,
+            _input: serde_json::Value,
+        ) -> Result<serde_json::Value> {
+            Ok(self.response.clone())
+        }
+    }
+
+    #[tokio::test]
+    async fn routed_remote_provider_parses_akshare_payload() {
+        let fake = Arc::new(FakePythonRunner {
+            response: serde_json::json!({
+                "status": "success",
+                "data": [
+                    {
+                        "date": "2024-03-17",
+                        "open": 10.5,
+                        "high": 11.0,
+                        "low": 10.2,
+                        "close": 10.8,
+                        "volume": "1000000"
+                    }
+                ]
+            }),
+        });
+
+        let provider = RoutedRemoteProvider::with_akshare_provider(AkshareProvider::new(fake));
+
+        let start = Utc.with_ymd_and_hms(2024, 3, 1, 0, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2024, 3, 31, 0, 0, 0).unwrap();
+        let result = provider
+            .fetch_bars("akshare", "SSE", "000001", "1d", start, end)
+            .await
+            .unwrap();
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].open, 10.5);
+        assert_eq!(result[0].high, 11.0);
+        assert_eq!(result[0].low, 10.2);
+        assert_eq!(result[0].close, 10.8);
+        assert_eq!(result[0].volume, 1_000_000.0);
+        assert_eq!(
+            result[0].timestamp,
+            Utc.with_ymd_and_hms(2024, 3, 17, 0, 0, 0).unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn routed_remote_provider_rejects_non_daily_timeframe() {
+        let fake = Arc::new(FakePythonRunner {
+            response: serde_json::json!({
+                "status": "success",
+                "data": []
+            }),
+        });
+
+        let provider = RoutedRemoteProvider::with_akshare_provider(AkshareProvider::new(fake));
+
+        let start = Utc.with_ymd_and_hms(2024, 3, 1, 0, 0, 0).unwrap();
+        let end = Utc.with_ymd_and_hms(2024, 3, 31, 0, 0, 0).unwrap();
+        let result = provider
+            .fetch_bars("akshare", "SSE", "000001", "1h", start, end)
+            .await;
+
+        assert!(result.is_err());
+        let err = result.err().unwrap().to_string();
+        assert!(err.contains("daily timeframe"));
     }
 
     #[test]

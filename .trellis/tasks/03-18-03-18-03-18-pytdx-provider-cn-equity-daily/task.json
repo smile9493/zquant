@@ -1,0 +1,44 @@
+{
+  "id": "03-18-03-18-pytdx-provider-cn-equity-daily",
+  "name": "03-18-03-18-pytdx-provider-cn-equity-daily",
+  "title": "PyTDX Provider Plugin: CN equity daily (SH/SZ/BJ)",
+  "description": "Integrate PyTDX as a decoupled provider plugin to fetch CN equity historical daily OHLCV across SH/SZ (hq) and BJ (exhq/SB), via Python subprocess runner; keep dataset contract stable.",
+  "status": "planning",
+  "dev_type": null,
+  "scope": "data-pipeline/pytdx-provider",
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-18",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

@@ -10,12 +10,14 @@ license.workspace = true
 infra-parquet = { path = "../infra-parquet" }
 store-manifest = { path = "../store-manifest" }
 data-pipeline-domain = { path = "../data-pipeline-domain" }
+data-pipeline-application = { path = "../data-pipeline-application" }
 
 anyhow.workspace = true
 chrono.workspace = true
 sqlx.workspace = true
 tracing.workspace = true
 async-trait.workspace = true
+serde_json.workspace = true
 tokio = { workspace = true, features = ["time"] }
 
 [dev-dependencies]

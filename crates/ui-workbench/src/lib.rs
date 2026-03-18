@@ -41,6 +41,14 @@ pub struct RenderSnapshot {
     pub symbol: String,
     pub timeframe: String,
     pub candles: Vec<Candle>,
+    /// Data provider identifier (e.g. "akshare").
+    pub provider: String,
+    /// Dataset identifier within the provider.
+    pub dataset_id: String,
+    /// Market classification (e.g. "cn_stock", "us_stock").
+    pub market: String,
+    /// Data capability tag (e.g. "ohlcv", "tick").
+    pub capability: String,
 }
 
 /// Commands that workbench can send to application layer
@@ -70,6 +78,10 @@ impl Workbench {
             symbol: "AAPL".to_string(),
             timeframe: "1D".to_string(),
             candles: demo_candles,
+            provider: "demo".to_string(),
+            dataset_id: "demo_ohlc".to_string(),
+            market: "us_stock".to_string(),
+            capability: "ohlcv".to_string(),
         };
         info!("Workbench initialized with {} demo candles", snapshot.candles.len());
         Self {
@@ -237,20 +249,29 @@ impl Workbench {
                 });
         }
 
-        // Left sidebar
+        // Left sidebar — data source info
         if self.panel_state.left_visible {
             SidePanel::left("left_sidebar")
                 .default_width(200.0)
                 .show(ctx, |ui| {
                     ui.heading("导航");
                     ui.separator();
-                    ui.label("• 数据源");
+
+                    ui.label("数据源");
+                    let provider = self.render_snapshot.as_ref()
+                        .map(|s| s.provider.as_str())
+                        .unwrap_or("unknown");
+                    ui.indent("provider_indent", |ui| {
+                        ui.label(format!("Provider: {provider}"));
+                    });
+
+                    ui.separator();
                     ui.label("• 策略");
                     ui.label("• 回测");
                 });
         }
 
-        // Right dock
+        // Right dock — properties with dataset metadata
         if self.panel_state.right_visible {
             SidePanel::right("right_dock")
                 .default_width(250.0)
@@ -261,7 +282,15 @@ impl Workbench {
                     ui.label(format!("Timeframe: {}", self.current_timeframe));
                     if let Some(ref snap) = self.render_snapshot {
                         ui.label(format!("K线数量: {}", snap.candles.len()));
+                        ui.separator();
+                        ui.label("数据集分类");
+                        ui.indent("dataset_indent", |ui| {
+                            ui.label(format!("dataset_id: {}", snap.dataset_id));
+                            ui.label(format!("market: {}", snap.market));
+                            ui.label(format!("capability: {}", snap.capability));
+                        });
                     }
+                    ui.separator();
                     ui.label("Status: Ready");
                 });
         }
@@ -376,9 +405,17 @@ mod tests {
                 low: 95.0,
                 close: 102.0,
             }],
+            provider: "akshare".into(),
+            dataset_id: "stock_zh_a_hist".into(),
+            market: "cn_stock".into(),
+            capability: "ohlcv".into(),
         };
         assert_eq!(snap.candles.len(), 1);
         assert_eq!(snap.symbol, "AAPL");
+        assert_eq!(snap.provider, "akshare");
+        assert_eq!(snap.dataset_id, "stock_zh_a_hist");
+        assert_eq!(snap.market, "cn_stock");
+        assert_eq!(snap.capability, "ohlcv");
     }
 
     #[test]

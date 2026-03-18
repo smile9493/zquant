@@ -1,0 +1,6 @@
+{"file": ".trellis/workflow.md", "reason": "Project workflow and conventions"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend development guide"}
+{"file": "crates\\data-pipeline-application\\python\\akshare_cn_equity_ohlcv_daily.py", "reason": "Reference: python script I/O contract"}
+{"file": "docs\\data\\统一数据管道骨架设计说明_合并正式版.md", "reason": "Design blueprint (source of truth)"}
+{"file": "crates\\data-pipeline-application\\src\\python_runner.rs", "reason": "Reference: python subprocess runner"}
+{"file": "crates\\data-pipeline-application\\src\\providers\\akshare.rs", "reason": "Reference: existing python-subprocess provider"}

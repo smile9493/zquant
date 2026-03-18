@@ -70,8 +70,13 @@ mod tests {
             symbol: "TEST".into(),
             timeframe: "1D".into(),
             data_points: vec![],
+            provider: "akshare".into(),
+            dataset_id: "test_ds".into(),
+            market: "cn_stock".into(),
+            capability: "ohlcv".into(),
         };
         assert_eq!(cd.symbol, "TEST");
         assert!(cd.data_points.is_empty());
+        assert_eq!(cd.provider, "akshare");
     }
 }

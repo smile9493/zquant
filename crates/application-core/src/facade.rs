@@ -29,6 +29,10 @@ impl ApplicationFacade {
             symbol: symbol.to_string(),
             timeframe: timeframe.to_string(),
             data_points: vec![],
+            provider: "akshare".to_string(),
+            dataset_id: "stock_zh_a_hist".to_string(),
+            market: "cn_stock".to_string(),
+            capability: "ohlcv".to_string(),
         })
     }
 
@@ -100,12 +104,20 @@ impl ApplicationFacade {
     }
 }
 
-/// Chart data structure
+/// Chart data structure with source metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChartData {
     pub symbol: String,
     pub timeframe: String,
     pub data_points: Vec<DataPoint>,
+    /// Data provider identifier (e.g. "akshare").
+    pub provider: String,
+    /// Dataset identifier within the provider.
+    pub dataset_id: String,
+    /// Market classification (e.g. "cn_stock", "us_stock").
+    pub market: String,
+    /// Data capability tag (e.g. "ohlcv", "tick").
+    pub capability: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
