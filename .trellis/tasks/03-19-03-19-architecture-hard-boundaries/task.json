@@ -1,0 +1,44 @@
+{
+  "id": "03-19-architecture-hard-boundaries",
+  "name": "03-19-architecture-hard-boundaries",
+  "title": "Desktop 架构硬边界固化（egui-first + bevy runtime）",
+  "description": "将 core/ui/renderer/app_shell 的解耦边界和输入路由规则固化为工程规范",
+  "status": "planning",
+  "dev_type": null,
+  "scope": null,
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-19",
+  "completedAt": null,
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
