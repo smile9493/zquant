@@ -421,7 +421,7 @@ impl MarketRepository {
         debug!(hot_count = hot_bars.len(), "Loaded bars from hot store");
 
         // Step 2: Calculate gaps
-        let gaps = GapCalculator::calculate_gaps(start, end, &hot_bars);
+        let gaps = GapCalculator::calculate_gaps(start, end, &hot_bars, timeframe);
 
         if gaps.is_empty() {
             info!("No gaps found, returning hot data only");
@@ -461,7 +461,7 @@ impl MarketRepository {
         let after_parquet = Self::merge_and_deduplicate(hot_bars, archive_bars);
 
         // Step 5: Remote backfill – fetch remaining gaps from provider
-        let remaining_gaps = GapCalculator::calculate_gaps(start, end, &after_parquet);
+        let remaining_gaps = GapCalculator::calculate_gaps(start, end, &after_parquet, timeframe);
         let mut remote_bars = Vec::new();
 
         if !remaining_gaps.is_empty() {
@@ -606,23 +606,64 @@ impl MarketRepository {
         Ok(all_bars)
     }
 
-    /// Merge hot and archive bars, deduplicate by timestamp
+    /// Merge two bar vectors with linear two-pointer merge and inline dedup.
+    ///
+    /// Both inputs are sorted first, then merged in O(a + b) with
+    /// duplicate timestamps removed (first occurrence / hot-priority wins).
     fn merge_and_deduplicate(mut hot: Vec<Bar>, mut archive: Vec<Bar>) -> Vec<Bar> {
-        // Combine all bars
-        hot.append(&mut archive);
-
-        // Sort by timestamp
+        // Sort each input individually
         hot.sort_by_key(|b| b.timestamp);
+        archive.sort_by_key(|b| b.timestamp);
 
-        // Deduplicate by timestamp (keep first occurrence)
-        let mut result = Vec::new();
-        let mut last_ts: Option<DateTime<Utc>> = None;
+        let mut result = Vec::with_capacity(hot.len() + archive.len());
+        let mut i = 0;
+        let mut j = 0;
 
-        for bar in hot {
-            if last_ts != Some(bar.timestamp) {
-                last_ts = Some(bar.timestamp);
-                result.push(bar);
+        while i < hot.len() && j < archive.len() {
+            let ts_h = hot[i].timestamp;
+            let ts_a = archive[j].timestamp;
+
+            match ts_h.cmp(&ts_a) {
+                std::cmp::Ordering::Less => {
+                    // Skip if duplicate of previous
+                    if result.last().map_or(true, |prev: &Bar| prev.timestamp != ts_h) {
+                        result.push(hot[i].clone());
+                    }
+                    i += 1;
+                }
+                std::cmp::Ordering::Greater => {
+                    if result.last().map_or(true, |prev: &Bar| prev.timestamp != ts_a) {
+                        result.push(archive[j].clone());
+                    }
+                    j += 1;
+                }
+                std::cmp::Ordering::Equal => {
+                    // Hot takes priority; skip archive duplicate
+                    if result.last().map_or(true, |prev: &Bar| prev.timestamp != ts_h) {
+                        result.push(hot[i].clone());
+                    }
+                    i += 1;
+                    j += 1;
+                }
             }
+        }
+
+        // Drain remaining hot
+        while i < hot.len() {
+            let ts = hot[i].timestamp;
+            if result.last().map_or(true, |prev: &Bar| prev.timestamp != ts) {
+                result.push(hot[i].clone());
+            }
+            i += 1;
+        }
+
+        // Drain remaining archive
+        while j < archive.len() {
+            let ts = archive[j].timestamp;
+            if result.last().map_or(true, |prev: &Bar| prev.timestamp != ts) {
+                result.push(archive[j].clone());
+            }
+            j += 1;
         }
 
         result
@@ -1541,5 +1582,91 @@ mod tests {
         // Remote data still included even though writeback failed
         assert_eq!(result.len(), 2, "Should have hot + remote bars despite writer failure");
         assert_eq!(result[0].timestamp, Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap());
+    }
+
+    #[test]
+    fn merge_interleaved_hot_and_archive() {
+        // Hot: 09:00, 10:00, 11:00
+        // Archive: 09:30, 10:30, 11:30
+        // Expected: 6 bars in chronological order, no duplicates
+        let hot = vec![
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap()),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 10, 0, 0).unwrap()),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 11, 0, 0).unwrap()),
+        ];
+        let archive = vec![
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 9, 30, 0).unwrap()),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 10, 30, 0).unwrap()),
+            create_test_bar(Utc.with_ymd_and_hms(2024, 3, 17, 11, 30, 0).unwrap()),
+        ];
+
+        let merged = MarketRepository::merge_and_deduplicate(hot, archive);
+
+        assert_eq!(merged.len(), 6);
+        for i in 1..merged.len() {
+            assert!(
+                merged[i].timestamp > merged[i - 1].timestamp,
+                "bars must be strictly ascending at index {}",
+                i
+            );
+        }
+    }
+
+    #[test]
+    fn merge_interleaved_with_overlapping_timestamps() {
+        // Hot: 09:00(open=1), 10:00(open=2), 11:00(open=3)
+        // Archive: 09:00(open=9), 10:30(open=10), 11:00(open=11)
+        // Expected: 4 bars; at 09:00 and 11:00 hot wins
+        let hot = vec![
+            Bar { timestamp: Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap(), open: 1.0, high: 0.0, low: 0.0, close: 0.0, volume: 0.0 },
+            Bar { timestamp: Utc.with_ymd_and_hms(2024, 3, 17, 10, 0, 0).unwrap(), open: 2.0, high: 0.0, low: 0.0, close: 0.0, volume: 0.0 },
+            Bar { timestamp: Utc.with_ymd_and_hms(2024, 3, 17, 11, 0, 0).unwrap(), open: 3.0, high: 0.0, low: 0.0, close: 0.0, volume: 0.0 },
+        ];
+        let archive = vec![
+            Bar { timestamp: Utc.with_ymd_and_hms(2024, 3, 17, 9, 0, 0).unwrap(), open: 9.0, high: 0.0, low: 0.0, close: 0.0, volume: 0.0 },
+            Bar { timestamp: Utc.with_ymd_and_hms(2024, 3, 17, 10, 30, 0).unwrap(), open: 10.0, high: 0.0, low: 0.0, close: 0.0, volume: 0.0 },
+            Bar { timestamp: Utc.with_ymd_and_hms(2024, 3, 17, 11, 0, 0).unwrap(), open: 11.0, high: 0.0, low: 0.0, close: 0.0, volume: 0.0 },
+        ];
+
+        let merged = MarketRepository::merge_and_deduplicate(hot, archive);
+
+        assert_eq!(merged.len(), 4);
+        // 09:00 → hot wins (open=1)
+        assert_eq!(merged[0].open, 1.0);
+        // 10:00 → hot only
+        assert_eq!(merged[1].open, 2.0);
+        // 10:30 → archive only
+        assert_eq!(merged[2].open, 10.0);
+        // 11:00 → hot wins (open=3)
+        assert_eq!(merged[3].open, 3.0);
+    }
+
+    #[test]
+    fn merge_large_scale_performance() {
+        // 10k bars each, interleaved timestamps
+        let base = Utc.with_ymd_and_hms(2020, 1, 1, 0, 0, 0).unwrap();
+        let hot: Vec<Bar> = (0..10_000u32)
+            .map(|i| {
+                let ts = base + chrono::Duration::minutes(i as i64 * 2);
+                create_test_bar(ts)
+            })
+            .collect();
+        let archive: Vec<Bar> = (0..10_000u32)
+            .map(|i| {
+                let ts = base + chrono::Duration::minutes(i as i64 * 2 + 1);
+                create_test_bar(ts)
+            })
+            .collect();
+
+        let start = std::time::Instant::now();
+        let merged = MarketRepository::merge_and_deduplicate(hot, archive);
+        let elapsed = start.elapsed();
+
+        assert_eq!(merged.len(), 20_000);
+        assert!(
+            elapsed.as_millis() < 5,
+            "merge of 20k bars took {}ms, expected < 5ms",
+            elapsed.as_millis()
+        );
     }
 }
