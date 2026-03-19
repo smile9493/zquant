@@ -1,0 +1,44 @@
+{
+  "id": "provider-reuse-abstraction",
+  "name": "provider-reuse-abstraction",
+  "title": "P1-8 Provider 复用抽象",
+  "description": "收敛 AkShare/PyTDX 重复模板逻辑，建立共享 provider 抽象与适配策略。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-20",
+  "completedAt": "2026-03-20",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}

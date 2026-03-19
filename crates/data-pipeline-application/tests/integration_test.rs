@@ -1429,3 +1429,155 @@ mod pytdx_tests {
         assert!(result.unwrap_err().to_string().contains("does not support generic fetch"));
     }
 }
+
+// ============================================================================
+// Phase E: Shared Provider Abstraction Tests
+// ============================================================================
+
+mod abstraction_tests {
+    use super::*;
+    use data_pipeline_application::{AkshareProvider, PytdxProvider, PythonRunner};
+    use data_pipeline_domain::DataProvider;
+    use std::path::Path;
+    use std::sync::Mutex;
+
+    /// A spy runner that captures the JSON input sent to the Python script.
+    struct SpyPythonRunner {
+        captured_input: Mutex<Option<serde_json::Value>>,
+    }
+
+    impl SpyPythonRunner {
+        fn new() -> Self {
+            Self {
+                captured_input: Mutex::new(None),
+            }
+        }
+
+        fn captured(&self) -> serde_json::Value {
+            self.captured_input.lock().unwrap().clone().unwrap()
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl PythonRunner for SpyPythonRunner {
+        async fn run_json(
+            &self,
+            _script_path: &Path,
+            input: serde_json::Value,
+        ) -> anyhow::Result<serde_json::Value> {
+            *self.captured_input.lock().unwrap() = Some(input);
+            Ok(serde_json::json!({"status": "success", "data": []}))
+        }
+    }
+
+    /// Test 1: Shared template flow — both providers produce identical base
+    /// fields (symbol, start_date, end_date) through the same code path.
+    #[tokio::test]
+    async fn test_shared_template_produces_consistent_base_fields() {
+        let spy_ak = Arc::new(SpyPythonRunner::new());
+        let spy_ptdx = Arc::new(SpyPythonRunner::new());
+
+        let ak = AkshareProvider::new(spy_ak.clone());
+        let ptdx = PytdxProvider::new(spy_ptdx.clone());
+
+        let make_req = || DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+            symbol_scope: vec!["600000".to_string()],
+            time_range: Some(data_pipeline_domain::TimeRange {
+                start: chrono::Utc::now(),
+                end: chrono::Utc::now(),
+            }),
+            forced_provider: None,
+        };
+
+        ak.fetch_dataset(make_req()).await.unwrap();
+        ptdx.fetch_dataset(make_req()).await.unwrap();
+
+        let ak_input = spy_ak.captured();
+        let ptdx_input = spy_ptdx.captured();
+
+        // Both must have the same base fields
+        assert_eq!(ak_input["symbol"], ptdx_input["symbol"]);
+        assert_eq!(ak_input["start_date"], ptdx_input["start_date"]);
+        assert_eq!(ak_input["end_date"], ptdx_input["end_date"]);
+    }
+
+    /// Test 2: Differentiation branch — AkshareProvider injects "adjust" extra
+    /// field while PytdxProvider does not.
+    #[tokio::test]
+    async fn test_extra_input_differentiation() {
+        let spy_ak = Arc::new(SpyPythonRunner::new());
+        let spy_ptdx = Arc::new(SpyPythonRunner::new());
+
+        let ak = AkshareProvider::new(spy_ak.clone());
+        let ptdx = PytdxProvider::new(spy_ptdx.clone());
+
+        let make_req = || DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+            symbol_scope: vec!["000001".to_string()],
+            time_range: None,
+            forced_provider: None,
+        };
+
+        ak.fetch_dataset(make_req()).await.unwrap();
+        ptdx.fetch_dataset(make_req()).await.unwrap();
+
+        let ak_input = spy_ak.captured();
+        let ptdx_input = spy_ptdx.captured();
+
+        // AkshareProvider must inject "adjust" field
+        assert!(
+            ak_input.get("adjust").is_some(),
+            "akshare input should contain 'adjust' field"
+        );
+        assert_eq!(ak_input["adjust"], "");
+
+        // PytdxProvider must NOT have "adjust" field
+        assert!(
+            ptdx_input.get("adjust").is_none(),
+            "pytdx input should not contain 'adjust' field"
+        );
+    }
+
+    /// Test 3: Shared validation — both providers reject multi-symbol requests
+    /// through the same template code path (not duplicated logic).
+    #[tokio::test]
+    async fn test_shared_validation_rejects_multi_symbol() {
+        let spy = Arc::new(SpyPythonRunner::new());
+
+        let ak = AkshareProvider::new(spy.clone());
+        let ptdx = PytdxProvider::new(spy.clone());
+
+        let make_req = || DatasetRequest {
+            capability: Capability::Ohlcv,
+            market: Market::CnEquity,
+            dataset_id: Some("cn_equity.ohlcv.daily".to_string()),
+            symbol_scope: vec!["600000".to_string(), "000001".to_string()],
+            time_range: None,
+            forced_provider: None,
+        };
+
+        let ak_err = ak.fetch_dataset(make_req()).await.unwrap_err();
+        let ptdx_err = ptdx.fetch_dataset(make_req()).await.unwrap_err();
+
+        // Both errors should mention "exactly 1 symbol" — same template message
+        assert!(
+            ak_err.to_string().contains("exactly 1 symbol"),
+            "akshare error: {}",
+            ak_err
+        );
+        assert!(
+            ptdx_err.to_string().contains("exactly 1 symbol"),
+            "pytdx error: {}",
+            ptdx_err
+        );
+
+        // But each should mention its own provider name
+        assert!(ak_err.to_string().contains("akshare"));
+        assert!(ptdx_err.to_string().contains("pytdx"));
+    }
+}

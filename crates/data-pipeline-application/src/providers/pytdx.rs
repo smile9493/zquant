@@ -1,10 +1,14 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use data_pipeline_domain::{Capability, DataProvider, DatasetRequest, FetchRequest, Market, RawData};
+use data_pipeline_domain::{
+    Capability, DataProvider, DatasetRequest, FetchRequest, Market, RawData,
+};
 
 use crate::python_runner::{PythonRunner, SubprocessPythonRunner};
+
+use super::{python_fetch_dataset, PythonDatasetConfig};
 
 pub struct PytdxProvider {
     runner: Arc<dyn PythonRunner>,
@@ -35,11 +39,20 @@ impl PytdxProvider {
     }
 }
 
-#[async_trait]
-impl DataProvider for PytdxProvider {
+impl PythonDatasetConfig for PytdxProvider {
     fn provider_name(&self) -> &str {
         Self::PROVIDER_NAME
     }
+
+    fn dataset_id(&self) -> &str {
+        Self::DATASET_ID_CN_EQUITY_OHLCV_DAILY
+    }
+
+    fn script_path(&self) -> Box<dyn AsRef<Path> + Send> {
+        Box::new(Self::script_path_cn_equity_daily())
+    }
+
+    // No extra_input — pytdx uses default (empty)
 
     fn capabilities(&self) -> Vec<Capability> {
         vec![Capability::Ohlcv]
@@ -50,8 +63,26 @@ impl DataProvider for PytdxProvider {
     }
 
     fn priority(&self) -> u8 {
-        // Lower priority than AkShare (50) — AkShare is more stable/documented
         40
+    }
+}
+
+#[async_trait]
+impl DataProvider for PytdxProvider {
+    fn provider_name(&self) -> &str {
+        Self::PROVIDER_NAME
+    }
+
+    fn capabilities(&self) -> Vec<Capability> {
+        PythonDatasetConfig::capabilities(self)
+    }
+
+    fn markets(&self) -> Vec<Market> {
+        PythonDatasetConfig::markets(self)
+    }
+
+    fn priority(&self) -> u8 {
+        PythonDatasetConfig::priority(self)
     }
 
     fn supports_dataset_ids(&self) -> bool {
@@ -63,46 +94,6 @@ impl DataProvider for PytdxProvider {
     }
 
     async fn fetch_dataset(&self, req: DatasetRequest) -> anyhow::Result<RawData> {
-        if req.dataset_id.as_deref() != Some(Self::DATASET_ID_CN_EQUITY_OHLCV_DAILY) {
-            anyhow::bail!(
-                "unsupported dataset_id for PytdxProvider: {:?}",
-                req.dataset_id
-            );
-        }
-
-        let symbol = req
-            .symbol_scope
-            .first()
-            .ok_or_else(|| anyhow::anyhow!("missing required symbol_scope for dataset {}", Self::DATASET_ID_CN_EQUITY_OHLCV_DAILY))?
-            .to_string();
-
-        if req.symbol_scope.len() != 1 {
-            anyhow::bail!(
-                "PytdxProvider currently supports exactly 1 symbol; got {}",
-                req.symbol_scope.len()
-            );
-        }
-
-        let (start_date, end_date) = match req.time_range {
-            None => (None, None),
-            Some(tr) => (
-                Some(tr.start.format("%Y%m%d").to_string()),
-                Some(tr.end.format("%Y%m%d").to_string()),
-            ),
-        };
-
-        let input = serde_json::json!({
-            "symbol": symbol,
-            "start_date": start_date,
-            "end_date": end_date,
-        });
-
-        let value = self
-            .runner
-            .run_json(&Self::script_path_cn_equity_daily(), input)
-            .await
-            .map_err(|e| anyhow::anyhow!("pytdx subprocess failed: {}", e))?;
-
-        Ok(RawData { content: value })
+        python_fetch_dataset(self, &self.runner, req).await
     }
 }
