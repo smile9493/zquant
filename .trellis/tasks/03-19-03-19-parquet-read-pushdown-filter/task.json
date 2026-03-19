@@ -1,0 +1,44 @@
+{
+  "id": "03-19-parquet-read-pushdown-filter",
+  "name": "03-19-parquet-read-pushdown-filter",
+  "title": "P1-7 Parquet 读取下推过滤优化",
+  "description": "M3/P1 阶段：为 infra-parquet/repository-market 增加时间范围下推过滤，避免全量读取后内存过滤。",
+  "status": "completed",
+  "dev_type": null,
+  "scope": null,
+  "priority": "P1",
+  "creator": "zquant",
+  "assignee": "zquant",
+  "createdAt": "2026-03-19",
+  "completedAt": "2026-03-19",
+  "branch": null,
+  "base_branch": "main",
+  "worktree_path": null,
+  "current_phase": 0,
+  "next_action": [
+    {
+      "phase": 1,
+      "action": "implement"
+    },
+    {
+      "phase": 2,
+      "action": "check"
+    },
+    {
+      "phase": 3,
+      "action": "finish"
+    },
+    {
+      "phase": 4,
+      "action": "create-pr"
+    }
+  ],
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {}
+}
